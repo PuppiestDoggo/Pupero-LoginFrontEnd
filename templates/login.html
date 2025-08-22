@@ -3,9 +3,10 @@
 {% block content %}
     <h1>Login</h1>
     <form method="post">
-        <label>Email: <input type="email" name="email" required></label><br>
+        <label>Username or Email: <input type="text" name="identifier" required></label><br>
         <label>Password: <input type="password" name="password" required></label><br>
         <label>TOTP (if enabled): <input type="text" name="totp"></label><br>
+        <label><input type="checkbox" name="remember_me" value="yes"> Remember me</label><br>
         <input type="submit" value="Login">
     </form>
 {% endblock %}

@@ -6,6 +6,15 @@
         <p>Secret: {{ secret }}</p>
         <p>Scan this QR code with your authenticator app:</p>
         <img src="{{ qr_url }}" alt="TOTP QR Code">
+        <h2>Confirm TOTP</h2>
+        <form method="post" action="{{ url_for('totp_enable_confirm') }}">
+            <label>Enter 6-digit code from your app:
+                <input type="text" name="code" pattern="\d{6}" maxlength="6" required>
+            </label>
+            <input type="hidden" name="secret" value="{{ secret }}">
+            <input type="hidden" name="qr_url" value="{{ qr_url }}">
+            <input type="submit" value="Confirm">
+        </form>
     {% else %}
         <form method="post">
             <input type="submit" value="Enable TOTP">

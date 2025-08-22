@@ -2,12 +2,68 @@
 {% block title %}Profile{% endblock %}
 {% block content %}
     <h1>Profile</h1>
+    <p>Username: {{ user.username or '(none)' }}</p>
     <p>Email: {{ user.email }}</p>
     <p>Role: {{ user.role }}</p>
     <p>Phrase: {{ user.phrase }}</p>
+
     <h2>Update Phrase</h2>
     <form method="post">
+        <input type="hidden" name="action" value="update_phrase">
         <label>New Phrase: <input type="text" name="phrase" required></label><br>
-        <input type="submit" value="Update">
+        <input type="submit" value="Update Phrase">
     </form>
+
+    <h2>Change Username</h2>
+    <form method="post">
+        <input type="hidden" name="action" value="change_username">
+        <label>New Username: <input type="text" name="username" required></label><br>
+        <input type="submit" value="Change Username">
+    </form>
+
+    <h2>Change Email</h2>
+    <form method="post">
+        <input type="hidden" name="action" value="change_email">
+        <label>New Email: <input type="email" name="new_email" required></label><br>
+        <label>Current Password: <input type="password" name="current_password" required></label><br>
+        <input type="submit" value="Change Email">
+    </form>
+
+    <h2>Change Password</h2>
+    <form method="post">
+        <input type="hidden" name="action" value="change_password">
+        <label>Current Password: <input type="password" name="current_password" required></label><br>
+        <label>New Password: <input type="password" name="new_password" required></label><br>
+        <input type="submit" value="Change Password">
+    </form>
+
+    <h2>Active Sessions by IP</h2>
+    {% if sessions and sessions|length > 0 %}
+        <table border="1" cellpadding="5">
+            <thead>
+                <tr><th>IP</th><th>User Agent</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>{{ s.ip }}</td>
+                    <td style="max-width:400px; overflow-wrap:anywhere;">{{ s.user_agent }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('close_session') }}" style="display:inline;">
+                            <input type="hidden" name="ip" value="{{ s.ip }}">
+                            <input type="hidden" name="current" value="{{ '1' if s.current else '0' }}">
+                            <button type="submit">Close</button>
+                        </form>
+                        <form method="post" action="{{ url_for('report_session') }}" style="display:inline; margin-left:8px;">
+                            <input type="hidden" name="ip" value="{{ s.ip }}">
+                            <button type="submit">Report to Admin</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No active sessions detected.</p>
+    {% endif %}
 {% endblock %}
