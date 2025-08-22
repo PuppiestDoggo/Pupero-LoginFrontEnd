@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Reset Password{% endblock %}
+{% block content %}
+    <h1>Reset Password</h1>
+    <form method="post">
+        <label>Email: <input type="email" name="email" required></label><br>
+        <input type="submit" value="Request Reset">
+    </form>
+{% endblock %}
