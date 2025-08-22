@@ -1,12 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, make_response, flash
 import requests
-from config import BACKEND_URL, SECRET_KEY, REMEMBER_ME_DAYS
+from config import BACKEND_URL, SECRET_KEY, REMEMBER_ME_DAYS, SECURE_COOKIES, SESSION_COOKIE_SAMESITE
 import logging
 import json
 import time
+import secrets
 
 app = Flask(__name__)
-app.secret_key = SECRET_KEY
+# Secret key handling: use env if provided, otherwise generate an ephemeral dev key
+if SECRET_KEY:
+    app.secret_key = SECRET_KEY
+else:
+    app.secret_key = secrets.token_hex(32)
+    logging.getLogger("pupero_frontend").warning("SECRET_KEY not set; using ephemeral dev key (development only). Set SECRET_KEY in environment for production.")
+
+# Session cookie hardening
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=SESSION_COOKIE_SAMESITE,
+    SESSION_COOKIE_SECURE=SECURE_COOKIES,
+)
 
 # JSON logger setup
 logger = logging.getLogger("pupero_frontend")
@@ -106,15 +119,16 @@ def login():
                 flash('Login failed: Invalid response from server', 'error')
                 return render_template('login.html')
             resp = make_response(redirect(url_for('profile')))
-            # Use secure cookie only on HTTPS; add SameSite and max_age
-            secure_flag = request.is_secure
+            # Decide cookie security flags from config; fallback to request.is_secure when not enforced
+            secure_flag = SECURE_COOKIES or request.is_secure
+            samesite = SESSION_COOKIE_SAMESITE
             max_age = REMEMBER_ME_DAYS*24*60*60 if remember_flag else 60*60
             resp.set_cookie(
                 'access_token',
                 tokens.get('access_token', ''),
                 httponly=True,
                 secure=secure_flag,
-                samesite='Lax',
+                samesite=samesite,
                 max_age=max_age
             )
             # Persist remember flag to reuse on token refreshes/updates
@@ -122,7 +136,7 @@ def login():
                 'remember',
                 '1' if remember_flag else '0',
                 secure=secure_flag,
-                samesite='Lax',
+                samesite=samesite,
                 max_age=max_age
             )
             try:
@@ -172,7 +186,8 @@ def profile():
                 # If tokens returned (email/password change), update cookie
                 if data.get('access_token'):
                     resp = make_response(redirect(url_for('profile')))
-                    secure_flag = request.is_secure
+                    secure_flag = SECURE_COOKIES or request.is_secure
+                    samesite = SESSION_COOKIE_SAMESITE
                     remember_cookie = request.cookies.get('remember') == '1'
                     max_age = REMEMBER_ME_DAYS*24*60*60 if remember_cookie else 60*60
                     resp.set_cookie(
@@ -180,7 +195,7 @@ def profile():
                         data.get('access_token', ''),
                         httponly=True,
                         secure=secure_flag,
-                        samesite='Lax',
+                        samesite=samesite,
                         max_age=max_age
                     )
                     try:
