@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Enable TOTP{% endblock %}
+{% block content %}
+    <h1>Enable TOTP</h1>
+    {% if qr_url %}
+        <p>Secret: {{ secret }}</p>
+        <p>Scan this QR code with your authenticator app:</p>
+        <img src="{{ qr_url }}" alt="TOTP QR Code">
+    {% else %}
+        <form method="post">
+            <input type="submit" value="Enable TOTP">
+        </form>
+    {% endif %}
+{% endblock %}
