@@ -8,6 +8,11 @@
     <nav>
         <a href="{{ url_for('home') }}">Home</a> |
         {% if request.cookies.get('access_token') %}
+            <a href="{{ url_for('offers') }}">Offers</a> |
+            <a href="{{ url_for('buy') }}">Buy</a> |
+            <a href="{{ url_for('sell') }}">Sell</a> |
+            <a href="{{ url_for('create_ad') }}">Create Ad</a> |
+            <a href="{{ url_for('my_ads') }}">My Ads</a> |
             <a href="{{ url_for('profile') }}">Profile</a> |
             <a href="{{ url_for('totp_enable') }}">Enable TOTP</a> |
             <a href="{{ url_for('logout') }}">Logout</a>

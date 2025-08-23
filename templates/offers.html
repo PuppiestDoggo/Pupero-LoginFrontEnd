@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Offers{% endblock %}
+{% block content %}
+<h1>Offers</h1>
+<form method="get" action="{{ url_for('offers') }}" style="margin-bottom: 1rem;">
+  <label>Status:
+    <select name="status">
+      <option value="">All</option>
+      <option value="open" {% if request.args.get('status')=='open' %}selected{% endif %}>Open</option>
+      <option value="closed" {% if request.args.get('status')=='closed' %}selected{% endif %}>Closed</option>
+    </select>
+  </label>
+  <button type="submit">Filter</button>
+</form>
+
+<!-- Creation of offers is removed; this page lists existing Buy/Sell ads -->
+
+<h2>List</h2>
+<ul>
+  {% for o in offers %}
+    <li>
+      <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
+      — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+    </li>
+  {% else %}
+    <li>No offers found.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

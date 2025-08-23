@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Sell Offers{% endblock %}
+{% block content %}
+<h1>Sell Monero</h1>
+<form method="get" action="{{ url_for('sell') }}" style="display:grid;gap:8px;grid-template-columns:repeat(4, minmax(180px, 1fr));align-items:end;margin-bottom:1rem;">
+  <label>Cryptocurrency
+    <select name="crypto" disabled>
+      <option value="XMR" selected>Monero (XMR)</option>
+      <option disabled>Bitcoin (BTC)</option>
+      <option disabled>Ethereum (ETH)</option>
+    </select>
+  </label>
+  <label>Amount
+    <input type="number" name="amount" step="0.0001" value="{{ filters.amount }}">
+  </label>
+  <label>Receive in
+    <select name="fiat">
+      <option value="EUR" {% if filters.fiat=='EUR' %}selected{% endif %}>EUR</option>
+      <option value="USD" {% if filters.fiat=='USD' %}selected{% endif %}>USD</option>
+      <option value="RUB" {% if filters.fiat=='RUB' %}selected{% endif %}>RUB</option>
+    </select>
+  </label>
+  <label>Payment method
+    <select name="payment">
+      <option value="">Any</option>
+      <option>Bank Transfer</option>
+      <option>Revolut</option>
+      <option>Paysafecard</option>
+      <option>Crypto (BTC)</option>
+      <option>Crypto (ETH)</option>
+    </select>
+  </label>
+  <label style="grid-column:1/3"><input type="checkbox" name="no_id" value="1" {% if filters.no_id=='1' %}checked{% endif %}> No confirmed ID required</label>
+  <label style="grid-column:3/5"><input type="checkbox" name="online_only" value="1" {% if filters.online_only=='1' %}checked{% endif %}> Online only</label>
+  <div style="grid-column:1/5"><button type="submit">Apply filters</button></div>
+</form>
+
+<h2>Offers</h2>
+<ul>
+  {% for o in offers %}
+  <li>
+    <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a> — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+  </li>
+  {% else %}
+  <li>No offers found.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

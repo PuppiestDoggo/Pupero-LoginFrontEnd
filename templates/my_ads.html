@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}My Ads{% endblock %}
+{% block content %}
+<h1>My Ads</h1>
+<p>Showing all ads (no auth binding in this minimal demo).</p>
+<ul>
+  {% for o in offers %}
+  <li>
+    <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a> — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+  </li>
+  {% else %}
+  <li>No ads yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

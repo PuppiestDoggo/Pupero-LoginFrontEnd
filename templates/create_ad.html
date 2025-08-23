@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% block title %}Create Ad{% endblock %}
+{% block content %}
+<h1>Create an Ad</h1>
+{% if preview and ad %}
+  <h2>Preview</h2>
+  <p><strong>Side:</strong> {{ ad.side }}</p>
+  <p><strong>Crypto:</strong> {{ ad.crypto }}</p>
+  <p><strong>Country:</strong> {{ ad.country }}</p>
+  <p><strong>Fiat:</strong> {{ ad.fiat }}</p>
+  <p><strong>Price setting:</strong>
+    {% if ad.price_mode == 'market' %}
+      Market (margin {{ ad.margin }}%)
+    {% elif ad.price_mode == 'fixed' %}
+      Fixed price: {{ ad.fixed_price }} {{ ad.fiat }} / XMR
+    {% else %}
+      Pricing equation (placeholder)
+    {% endif %}
+  </p>
+  <p><strong>Computed price:</strong> {{ preview_price }} {{ ad.fiat }} / XMR</p>
+  <p><strong>Schedule:</strong> {{ ad.schedule_human }}</p>
+  <p><strong>Payment method:</strong> {{ ad.payment_method }}</p>
+  <p><strong>Promo:</strong> {{ ad.promo_text }}</p>
+  <p><strong>Limits:</strong> {{ ad.min_limit }} - {{ ad.max_limit }}</p>
+  <p><strong>Escrow (min):</strong> {{ ad.escrow_minutes }}</p>
+  <p><strong>Requirements:</strong> phone={{ ad.req_phone }}, id={{ ad.req_id }}</p>
+  <p><strong>Trade conditions:</strong> {{ ad.trade_conditions }}</p>
+  <form method="post">
+    <input type="hidden" name="ad_json" value='{{ ad|tojson }}'>
+    <label>Backend price (XMR) required
+      <input type="number" step="0.0001" min="0" name="price" value="1.0">
+    </label>
+    <input type="hidden" name="seller_id" value="0">
+    <input type="hidden" name="step" value="confirm">
+    <div style="margin-top:1rem;">
+      <button type="submit">Confirm and publish</button>
+      <a href="{{ url_for('create_ad') }}">Start over</a>
+    </div>
+  </form>
+{% else %}
+  <form method="post" style="display:grid;gap:8px;grid-template-columns:repeat(2, minmax(240px, 1fr));">
+    <label>I'd like to
+      <select name="side">
+        <option value="buy">Buy</option>
+        <option value="sell">Sell</option>
+      </select>
+    </label>
+    <label>Cryptocurrency
+      <select name="crypto">
+        <option value="XMR" selected>Monero (XMR)</option>
+        <option disabled>Bitcoin (BTC)</option>
+        <option disabled>Ethereum (ETH)</option>
+      </select>
+    </label>
+    <label>Ad country
+      <select name="country">
+        <option value="">Select a country</option>
+        <option value="FR">France (FR)</option>
+        <option value="RU">Russia (RU)</option>
+        <option value="DE">Germany (DE)</option>
+        <option value="ES">Spain (ES)</option>
+        <option value="IT">Italy (IT)</option>
+        <option value="GB">United Kingdom (GB)</option>
+        <option value="US">United States (US)</option>
+        <option value="UA">Ukraine (UA)</option>
+        <option value="PL">Poland (PL)</option>
+        <option value="CN">China (CN)</option>
+        <option value="IN">India (IN)</option>
+      </select>
+    </label>
+    <label>Local currency
+      <select name="fiat" id="fiat_select">
+        <option value="EUR">EUR</option>
+        <option value="USD">USD</option>
+        <option value="RUB">RUB</option>
+      </select>
+    </label>
+    <label>Price setting
+      <select name="price_mode" id="price_mode">
+        <option value="market">Market price</option>
+        <option value="equation">Pricing equation</option>
+        <option value="fixed">Fixed price</option>
+      </select>
+    </label>
+    <label id="price_margin_group">Margin (%)
+      <input type="number" name="margin" step="0.1" value="0">
+    </label>
+    <label id="price_fixed_group" style="display:none;">Fixed price ({{ request.form.get('fiat','EUR') or 'EUR' }} per 1 XMR)
+      <input type="number" name="fixed_price" step="0.01" placeholder="e.g., 250">
+    </label>
+    <label id="price_equation_group" style="display:none;">Pricing equation (placeholder)
+      <input type="text" name="pricing_equation" placeholder="e.g., market_price * 1.10">
+    </label>
+
+    <div id="result_price" style="grid-column:1/3; margin-top:4px;">
+      <strong>Resulting price:</strong> <span id="result_price_value">—</span> per 1 XMR
+    </div>
+
+    <fieldset style="grid-column:1/3; border:1px solid #ccc; padding:8px;">
+      <legend>Schedule</legend>
+      <label><input type="radio" name="schedule_mode" value="24h" checked> 24 hours (always visible)</label>
+      <label style="margin-left:12px;"><input type="radio" name="schedule_mode" value="weekly"> Weekly schedule</label>
+      <div id="weekly_block" style="margin-top:8px; display:none; gap:8px;">
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap:6px; align-items:center;">
+          {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          <div style="display:contents;">
+            <label><input type="checkbox" name="day_{{ d }}" value="1" onchange="toggleDay('{{ d }}')"> {{ d }}</label>
+            <input type="time" name="{{ d }}_start" id="{{ d }}_start" value="09:00" disabled>
+            <input type="time" name="{{ d }}_end" id="{{ d }}_end" value="17:00" disabled>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </fieldset>
+
+    <label style="grid-column:1/3">Payment method
+      <select name="payment_method">
+        <option>Bank Transfer</option>
+        <option>Revolut</option>
+        <option>Paysafecard</option>
+        <option>Crypto (BTC)</option>
+        <option>Crypto (ETH)</option>
+      </select>
+    </label>
+    <label style="grid-column:1/3">Promo text
+      <input type="text" name="promo_text" maxlength="255">
+    </label>
+    <label>Min transaction limit
+      <input type="number" name="min_limit" step="0.0001">
+    </label>
+    <label>Max transaction limit
+      <input type="number" name="max_limit" step="0.0001">
+    </label>
+    <label>Escrow time (minutes)
+      <input type="number" name="escrow_minutes" value="60">
+    </label>
+    <div style="grid-column:1/3">
+      <label><input type="checkbox" name="req_phone"> Confirmed phone</label>
+      <label><input type="checkbox" name="req_id"> Confirmed ID</label>
+    </div>
+    <label style="grid-column:1/3">Trade conditions
+      <textarea name="trade_conditions" rows="4"></textarea>
+    </label>
+    <input type="hidden" name="step" value="preview">
+    <div style="grid-column:1/3;margin-top:1rem;"><button type="submit">Next</button></div>
+  </form>
+
+  <script>
+    function updateResultPrice() {
+      const mode = document.getElementById('price_mode').value;
+      const fiatSel = document.getElementById('fiat_select');
+      const fiat = fiatSel ? fiatSel.value : 'EUR';
+      const marginInput = document.querySelector('input[name="margin"]');
+      const fixedInput = document.querySelector('input[name="fixed_price"]');
+      let text = '—';
+      if (mode === 'market') {
+        let m = parseFloat(marginInput && marginInput.value ? marginInput.value : '0');
+        if (isNaN(m)) m = 0;
+        const price = Math.round(250 * (1 + m / 100) * 100) / 100;
+        text = price + ' ' + fiat;
+      } else if (mode === 'fixed') {
+        const fp = parseFloat(fixedInput && fixedInput.value ? fixedInput.value : '');
+        if (!isNaN(fp)) {
+          const price = Math.round(fp * 100) / 100;
+          text = price + ' ' + fiat;
+        } else {
+          text = '—';
+        }
+      } else if (mode === 'equation') {
+        text = 'Use pricing equation (placeholder)';
+      }
+      const span = document.getElementById('result_price_value');
+      if (span) span.textContent = text;
+    }
+    function onModeChange() {
+      const mode = document.getElementById('price_mode').value;
+      document.getElementById('price_margin_group').style.display = (mode === 'market') ? '' : 'none';
+      document.getElementById('price_fixed_group').style.display = (mode === 'fixed') ? '' : 'none';
+      document.getElementById('price_equation_group').style.display = (mode === 'equation') ? '' : 'none';
+      updateResultPrice();
+    }
+    function onScheduleChange() {
+      const radios = document.querySelectorAll('input[name="schedule_mode"]');
+      let weekly = false;
+      radios.forEach(r => { if (r.checked && r.value === 'weekly') weekly = true; });
+      document.getElementById('weekly_block').style.display = weekly ? 'block' : 'none';
+    }
+    function toggleDay(d) {
+      const enabled = document.querySelector(`input[name=day_${d}]`).checked;
+      document.getElementById(`${d}_start`).disabled = !enabled;
+      document.getElementById(`${d}_end`).disabled = !enabled;
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('price_mode').addEventListener('change', onModeChange);
+      const marginInput = document.querySelector('input[name="margin"]');
+      const fixedInput = document.querySelector('input[name="fixed_price"]');
+      const fiatSel = document.getElementById('fiat_select');
+      if (marginInput) marginInput.addEventListener('input', updateResultPrice);
+      if (fixedInput) fixedInput.addEventListener('input', updateResultPrice);
+      if (fiatSel) fiatSel.addEventListener('change', updateResultPrice);
+      document.querySelectorAll('input[name="schedule_mode"]').forEach(el => el.addEventListener('change', onScheduleChange));
+      onModeChange();
+      onScheduleChange();
+      updateResultPrice();
+    });
+  </script>
+{% endif %}
+{% endblock %}
