@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Balances{% endblock %}
+{% block content %}
+<h1>Your Balances</h1>
+{% if balance %}
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr><th align="left">User ID</th><td>{{ balance.user_id }}</td></tr>
+  <tr><th align="left">Fake XMR (in DB)</th><td>{{ balance.fake_xmr }}</td></tr>
+  <tr><th align="left">Real XMR (external)</th><td>{{ balance.real_xmr }}</td></tr>
+  <tr><th align="left">Updated</th><td>{{ balance.updated_at }}</td></tr>
+</table>
+{% else %}
+<p>Balance not available.</p>
+{% endif %}
+
+<h2>Increase Balance</h2>
+<form method="post" action="{{ url_for('balances_increase') }}" style="display:flex;gap:8px;align-items:end;">
+  <label>Kind
+    <select name="kind">
+      <option value="fake">Fake</option>
+      <option value="real">Real</option>
+    </select>
+  </label>
+  <label>Amount (XMR)
+    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+  </label>
+  <button type="submit">Increase</button>
+</form>
+
+<h2>Decrease Balance</h2>
+<form method="post" action="{{ url_for('balances_decrease') }}" style="display:flex;gap:8px;align-items:end;">
+  <label>Kind
+    <select name="kind">
+      <option value="fake">Fake</option>
+      <option value="real">Real</option>
+    </select>
+  </label>
+  <label>Amount (XMR)
+    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+  </label>
+  <button type="submit">Decrease</button>
+</form>
+{% endblock %}

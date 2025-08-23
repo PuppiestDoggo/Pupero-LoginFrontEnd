@@ -8,8 +8,9 @@ def _to_bool(val: str, default: bool = False) -> bool:
 
 load_dotenv()
 
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
-OFFERS_SERVICE_URL = os.getenv('OFFERS_SERVICE_URL', 'http://localhost:8001')
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000/auth')
+OFFERS_SERVICE_URL = os.getenv('OFFERS_SERVICE_URL', 'http://localhost:8000')
+TRANSACTIONS_SERVICE_URL = os.getenv('TRANSACTIONS_SERVICE_URL', 'http://localhost:8000/transactions')
 SECRET_KEY = os.getenv('SECRET_KEY')
 REMEMBER_ME_DAYS = int(os.getenv('REMEMBER_ME_DAYS', '30'))
 SECURE_COOKIES = _to_bool(os.getenv('SECURE_COOKIES'), default=False)

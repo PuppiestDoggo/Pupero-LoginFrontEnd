@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, make_response, flash
 import requests
-from config import BACKEND_URL, OFFERS_SERVICE_URL, SECRET_KEY, REMEMBER_ME_DAYS, SECURE_COOKIES, SESSION_COOKIE_SAMESITE
+from config import BACKEND_URL, OFFERS_SERVICE_URL, TRANSACTIONS_SERVICE_URL, SECRET_KEY, REMEMBER_ME_DAYS, SECURE_COOKIES, SESSION_COOKIE_SAMESITE
 import logging
 import json
 import time
@@ -920,6 +920,110 @@ def update_ad(offer_id: str):
     except Exception as e:
         flash(f'Update failed: {e}', 'error')
     return redirect(url_for('my_ads'))
+
+
+# Balances UI (Transactions service integration)
+
+def _get_logged_in_user_id() -> int:
+    try:
+        headers = get_auth_headers()
+        if not headers:
+            return 0
+        r = requests.get(f"{BACKEND_URL}/user/profile", headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return int(data.get('id') or 0)
+    except Exception:
+        return 0
+    return 0
+
+
+@app.route('/balances', methods=['GET'])
+def balances():
+    # Require login
+    if not request.cookies.get('access_token'):
+        flash('Please log in to view balances.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('login'))
+    bal = None
+    try:
+        r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}", timeout=10)
+        if r.status_code == 200:
+            bal = r.json()
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Failed to load balance: {detail}', 'error')
+    except Exception as e:
+        flash(f'Failed to load balance: {e}', 'error')
+    return render_template('balances.html', balance=bal)
+
+
+@app.route('/balances/increase', methods=['POST'])
+def balances_increase():
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('login'))
+    kind = request.form.get('kind', 'fake')
+    amt_raw = request.form.get('amount_xmr')
+    try:
+        amt = float(amt_raw)
+    except Exception:
+        flash('Invalid amount', 'error')
+        return redirect(url_for('balances'))
+    try:
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/increase", json={"amount_xmr": amt, "kind": kind}, timeout=10)
+        if r.status_code == 200:
+            flash('Balance increased', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Increase failed: {detail}', 'error')
+    except Exception as e:
+        flash(f'Increase failed: {e}', 'error')
+    return redirect(url_for('balances'))
+
+
+@app.route('/balances/decrease', methods=['POST'])
+def balances_decrease():
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('login'))
+    kind = request.form.get('kind', 'fake')
+    amt_raw = request.form.get('amount_xmr')
+    try:
+        amt = float(amt_raw)
+    except Exception:
+        flash('Invalid amount', 'error')
+        return redirect(url_for('balances'))
+    try:
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/decrease", json={"amount_xmr": amt, "kind": kind}, timeout=10)
+        if r.status_code == 200:
+            flash('Balance decreased', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Decrease failed: {detail}', 'error')
+    except Exception as e:
+        flash(f'Decrease failed: {e}', 'error')
+    return redirect(url_for('balances'))
 
 
 if __name__ == '__main__':
