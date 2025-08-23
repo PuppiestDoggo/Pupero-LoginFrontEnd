@@ -196,6 +196,29 @@ def get_auth_headers():
         return {'Authorization': f'Bearer {token}'}
     return {}
 
+# Helper to fetch current user's TOTP status (True if enabled)
+# Kept lightweight; called only when a token cookie exists
+def _fetch_totp_enabled() -> bool:
+    try:
+        headers = get_auth_headers()
+        if not headers:
+            return False
+        resp = requests.get(f"{BACKEND_URL}/totp/status", headers=headers, timeout=3)
+        if resp.status_code == 200:
+            data = resp.json()
+            return bool(data.get('enabled'))
+    except Exception:
+        pass
+    return False
+
+# Inject totp_enabled into all templates when logged in
+@app.context_processor
+def inject_totp():
+    enabled = False
+    if request.cookies.get('access_token'):
+        enabled = _fetch_totp_enabled()
+    return dict(totp_enabled=enabled)
+
 # Home
 @app.route('/')
 def home():
@@ -363,12 +386,23 @@ def profile():
         except Exception:
             flash('Invalid profile response', 'error')
             return redirect(url_for('login'))
+        # Fetch 2FA (TOTP) status
+        totp_enabled = False
+        try:
+            status_resp = requests.get(f'{BACKEND_URL}/totp/status', headers=headers, timeout=10)
+            if status_resp.status_code == 200:
+                try:
+                    totp_enabled = bool(status_resp.json().get('enabled'))
+                except Exception:
+                    totp_enabled = False
+        except Exception:
+            totp_enabled = False
         sessions = [{
             'ip': request.remote_addr,
             'user_agent': request.headers.get('User-Agent', ''),
             'current': True
         }]
-        return render_template('profile.html', user=user_data, sessions=sessions)
+        return render_template('profile.html', user=user_data, sessions=sessions, totp_enabled=totp_enabled)
     else:
         flash('Unauthorized', 'error')
         return redirect(url_for('login'))
@@ -379,7 +413,10 @@ def totp_enable():
     headers = get_auth_headers()
     if not headers:
         return redirect(url_for('login'))
-    
+    # If TOTP is already enabled, don't show enable page again
+    if _fetch_totp_enabled():
+        flash('Two-Factor Authentication is already enabled.', 'info')
+        return redirect(url_for('profile'))
     if request.method == 'POST':
         try:
             response = requests.post(f'{BACKEND_URL}/totp/enable/start', headers=headers, timeout=10)
@@ -434,6 +471,30 @@ def totp_enable_confirm():
         if secret and qr_url:
             return render_template('totp_enable.html', secret=secret, qr_url=qr_url)
         return redirect(url_for('totp_enable'))
+
+# Disable TOTP
+@app.route('/totp/disable', methods=['POST'])
+def totp_disable():
+    headers = get_auth_headers()
+    if not headers:
+        return redirect(url_for('login'))
+    try:
+        response = requests.post(f"{BACKEND_URL}/totp/disable", headers=headers, timeout=10)
+        if response.status_code == 200:
+            try:
+                msg = response.json().get('message', 'TOTP disabled')
+            except Exception:
+                msg = 'TOTP disabled'
+            flash(msg, 'success')
+        else:
+            try:
+                detail = response.json().get('detail', response.text)
+            except Exception:
+                detail = 'Failed to disable TOTP'
+            flash(str(detail), 'error')
+    except Exception as e:
+        flash(f'Failed to disable TOTP: {e}', 'error')
+    return redirect(url_for('profile'))
 
 # Password Reset Request
 @app.route('/password/reset', methods=['GET', 'POST'])

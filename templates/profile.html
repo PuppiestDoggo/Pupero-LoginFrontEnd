@@ -37,6 +37,17 @@
         <input type="submit" value="Change Password">
     </form>
 
+    <h2>Two-Factor Authentication (2FA)</h2>
+    {% if totp_enabled %}
+        <p>Status: <strong>Enabled</strong></p>
+        <form method="post" action="{{ url_for('totp_disable') }}">
+            <button type="submit" onclick="return confirm('Disable 2FA?');">Disable 2FA</button>
+        </form>
+    {% else %}
+        <p>Status: <strong>Disabled</strong></p>
+        <p><a href="{{ url_for('totp_enable') }}">Enable 2FA (TOTP)</a></p>
+    {% endif %}
+
     <h2>Active Sessions by IP</h2>
     {% if sessions and sessions|length > 0 %}
         <table border="1" cellpadding="5">

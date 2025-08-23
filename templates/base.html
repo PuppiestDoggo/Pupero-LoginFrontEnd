@@ -14,7 +14,7 @@
             <a href="{{ url_for('create_ad') }}">Create Ad</a> |
             <a href="{{ url_for('my_ads') }}">My Ads</a> |
             <a href="{{ url_for('profile') }}">Profile</a> |
-            <a href="{{ url_for('totp_enable') }}">Enable TOTP</a> |
+            {% if not totp_enabled %}<a href="{{ url_for('totp_enable') }}">Enable TOTP</a> |{% endif %}
             <a href="{{ url_for('logout') }}">Logout</a>
         {% else %}
             <a href="{{ url_for('register') }}">Register</a> |
