@@ -528,8 +528,8 @@ def offers():
     return render_template('offers.html', offers=offers)
 
 
-@app.route('/offers/<int:offer_id>', methods=['GET'])
-def offer_detail(offer_id: int):
+@app.route('/offers/<offer_id>', methods=['GET'])
+def offer_detail(offer_id: str):
     # Require login to view offer details
     if not request.cookies.get('access_token'):
         flash('Please log in to view offers.', 'warning')
@@ -550,8 +550,8 @@ def offer_detail(offer_id: int):
     return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr)
 
 
-@app.route('/offers/<int:offer_id>/bid', methods=['POST'])
-def offer_bid(offer_id: int):
+@app.route('/offers/<offer_id>/bid', methods=['POST'])
+def offer_bid(offer_id: str):
     # Require login to start a trade
     if not request.cookies.get('access_token'):
         flash('Please log in to start a trade.', 'warning')
@@ -816,6 +816,7 @@ def my_ads():
         return redirect(url_for('login'))
     # In this minimal implementation, we do not have auth binding; show all offers
     offers = []
+    my_name = _get_logged_in_username()
     try:
         resp = requests.get(f"{OFFERS_SERVICE_URL}/offers", timeout=10)
         if resp.status_code == 200:
@@ -823,7 +824,41 @@ def my_ads():
             offers = [_attach_seller_name(o) for o in offers]
     except Exception as e:
         flash(f'Failed to load offers: {e}', 'error')
-    return render_template('my_ads.html', offers=offers)
+    return render_template('my_ads.html', offers=offers, my_name=my_name)
+
+
+@app.route('/ads/<offer_id>/update', methods=['POST'])
+def update_ad(offer_id: str):
+    # Require login
+    if not request.cookies.get('access_token'):
+        flash('Please log in to edit your ads.', 'warning')
+        return redirect(url_for('login'))
+    payload = {
+        'title': request.form.get('title'),
+        'price': request.form.get('price'),
+        'status': request.form.get('status'),
+    }
+    # Convert price to float if provided
+    try:
+        if payload.get('price') not in (None, ''):
+            payload['price'] = float(payload['price'])
+        else:
+            payload['price'] = None
+    except Exception:
+        payload['price'] = None
+    try:
+        r = requests.put(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", json=payload, timeout=10)
+        if r.status_code == 200:
+            flash('Ad updated', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Update failed: {detail}', 'error')
+    except Exception as e:
+        flash(f'Update failed: {e}', 'error')
+    return redirect(url_for('my_ads'))
 
 
 if __name__ == '__main__':
