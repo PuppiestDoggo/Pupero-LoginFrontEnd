@@ -1026,6 +1026,46 @@ def balances_decrease():
     return redirect(url_for('balances'))
 
 
+@app.route('/balances/withdraw', methods=['POST'])
+def balances_withdraw():
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('login'))
+    to_address = request.form.get('to_address', '').strip()
+    amt_raw = request.form.get('amount_xmr')
+    try:
+        amt = float(amt_raw)
+    except Exception:
+        flash('Invalid amount', 'error')
+        return redirect(url_for('balances'))
+    if not to_address:
+        flash('Destination address is required', 'error')
+        return redirect(url_for('balances'))
+    try:
+        # API Manager expects /transactions prefix; TRANSACTIONS_SERVICE_URL already includes it
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/withdraw/{user_id}", json={"to_address": to_address, "amount_xmr": amt}, timeout=30)
+        if r.status_code == 200:
+            try:
+                data = r.json()
+                txh = data.get('tx_hash') or ''
+                flash(f'Withdrawal submitted. tx_hash={txh}', 'success')
+            except Exception:
+                flash('Withdrawal submitted.', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Withdraw failed: {detail}', 'error')
+    except Exception as e:
+        flash(f'Withdraw failed: {e}', 'error')
+    return redirect(url_for('balances'))
+
+
 if __name__ == '__main__':
     app.run(debug=True)
 

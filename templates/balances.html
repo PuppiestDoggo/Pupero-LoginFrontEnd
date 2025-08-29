@@ -40,4 +40,18 @@
   </label>
   <button type="submit">Decrease</button>
 </form>
+
+<h2>Withdraw (Send Monero)</h2>
+<form method="post" action="{{ url_for('balances_withdraw') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+  <label style="flex:1 1 420px;">Destination Address
+    <input type="text" name="to_address" style="width:100%;" required>
+  </label>
+  <label>Amount (XMR)
+    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+  </label>
+  <button type="submit">Send</button>
+</form>
+<p style="color:#555;max-width:720px;">
+  Note: You cannot withdraw more than your total balance (Fake XMR + Real XMR). The system will enforce this limit server-side.
+</p>
 {% endblock %}

@@ -1,6 +1,30 @@
 {% extends 'base.html' %}
 {% block title %}Home{% endblock %}
 {% block content %}
-    <h1>Welcome to Pupero Frontend</h1>
-    <p>Use the links above to register or login.</p>
+    <h1>Welcome to Pupero</h1>
+    <p>This is a simple front page to try Monero features in the demo stack.</p>
+
+    <section>
+      <h2>Quick actions</h2>
+      <ul>
+        {% if request.cookies.get('access_token') %}
+          <li><a href="{{ url_for('balances') }}">Check your demo XMR balances</a></li>
+          <li><a href="{{ url_for('offers') }}">Browse offers</a></li>
+          <li><a href="{{ url_for('profile') }}">Manage your profile and 2FA</a></li>
+        {% else %}
+          <li><a href="{{ url_for('register') }}">Create an account</a></li>
+          <li><a href="{{ url_for('login') }}">Login to access wallet and offers</a></li>
+        {% endif %}
+      </ul>
+    </section>
+
+    <section>
+      <h2>Try Monero (Demo)</h2>
+      <p>Use the demo Transactions service to credit your fake XMR and simulate transfers between users.</p>
+      <ol>
+        <li>Register and Login.</li>
+        <li>Go to Balances to view your fake/real XMR.</li>
+        <li>Increase your fake XMR balance, then try a transfer.</li>
+      </ol>
+    </section>
 {% endblock %}

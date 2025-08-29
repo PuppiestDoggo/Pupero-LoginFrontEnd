@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_RUN_HOST=0.0.0.0 \
     FLASK_RUN_PORT=5000
 
-RUN apk add --no-cache build-base gcc musl-dev linux-headers libffi-dev
+RUN apk add --no-cache build-base gcc musl-dev linux-headers libffi-dev mariadb-connector-c-dev python3-dev
 
 WORKDIR /app
 COPY FlaskProject/requirements.txt /app/requirements.txt
