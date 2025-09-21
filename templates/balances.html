@@ -2,6 +2,14 @@
 {% block title %}Balances{% endblock %}
 {% block content %}
 <h1>Your Balances</h1>
+
+<h2>Your Monero subaddress</h2>
+{% if monero_address %}
+<p style="word-break: break-all;">{{ monero_address }}</p>
+{% else %}
+<p style="color:#555;">No subaddress yet for your account.</p>
+{% endif %}
+
 {% if balance %}
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><th align="left">User ID</th><td>{{ balance.user_id }}</td></tr>

@@ -830,7 +830,7 @@ def create_ad():
                 'schedule': ad.get('schedule'),
                 'seller_name': _get_logged_in_username(),
             }
-            # Price field required by backend; approximate or default 1.0
+            # Backend price is handled internally; UI provides a default placeholder value (1.0)
             try:
                 price = float(request.form.get('price') or 1.0)
             except Exception:
@@ -949,6 +949,7 @@ def balances():
         flash('Could not identify user.', 'error')
         return redirect(url_for('login'))
     bal = None
+    monero_address = None
     try:
         r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}", timeout=10)
         if r.status_code == 200:
@@ -961,7 +962,25 @@ def balances():
             flash(f'Failed to load balance: {detail}', 'error')
     except Exception as e:
         flash(f'Failed to load balance: {e}', 'error')
-    return render_template('balances.html', balance=bal)
+    # Also fetch user's Monero subaddress via API Manager (monero service)
+    try:
+        # OFFERS_SERVICE_URL points to API Manager base (e.g., http://api-manager:8000)
+        r2 = requests.get(f"{OFFERS_SERVICE_URL}/monero/addresses", params={"user_id": user_id}, timeout=10)
+        if r2.status_code == 200:
+            addrs = r2.json() or []
+            if isinstance(addrs, list) and addrs:
+                monero_address = addrs[0].get('address') or None
+        else:
+            # Non-fatal; just log to flash for visibility
+            try:
+                detail2 = r2.json().get('detail', r2.text)
+            except Exception:
+                detail2 = r2.text
+            flash(f'Could not load Monero address: {detail2}', 'warning')
+    except Exception as e:
+        # Non-fatal
+        flash(f'Could not load Monero address: {e}', 'warning')
+    return render_template('balances.html', balance=bal, monero_address=monero_address)
 
 
 @app.route('/balances/increase', methods=['POST'])
