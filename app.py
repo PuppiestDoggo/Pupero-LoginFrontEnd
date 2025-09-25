@@ -1,6 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, make_response, flash
+from flask import Flask, render_template, request, redirect, url_for, make_response, flash, Response
 import requests
-from config import BACKEND_URL, OFFERS_SERVICE_URL, TRANSACTIONS_SERVICE_URL, SECRET_KEY, REMEMBER_ME_DAYS, SECURE_COOKIES, SESSION_COOKIE_SAMESITE
+from config import (
+    BACKEND_URL,
+    OFFERS_SERVICE_URL,
+    TRANSACTIONS_SERVICE_URL,
+    SECRET_KEY,
+    REMEMBER_ME_DAYS,
+    SECURE_COOKIES,
+    SESSION_COOKIE_SAMESITE,
+    MATRIX_ENABLED,
+    MATRIX_HS_URL_BACKEND,
+    MATRIX_ELEMENT_URL,
+    MATRIX_SERVER_NAME,
+    MATRIX_USER_PREFIX,
+    MATRIX_DEFAULT_PASSWORD_SECRET,
+)
 import logging
 import json
 import time
@@ -1155,6 +1169,121 @@ ACTIVE_TRADE_ID_BY_USER: dict[int, str] = {}
 # Map username -> current active trade_id (fallback for legacy offers with unknown owner IDs)
 ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 
+# --- Matrix chat helpers ---
+
+def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
+    try:
+        uid = int(user_id)
+    except Exception:
+        uid = 0
+    return f"{MATRIX_USER_PREFIX}{uid}"
+
+
+def _mx_mxid(username: str) -> str:
+    # Build full MXID from localpart and server name
+    return f"@{username}:{MATRIX_SERVER_NAME}"
+
+
+def _mx_password_for_user(user_id: int) -> str:
+    return f"pw-{int(user_id)}-{MATRIX_DEFAULT_PASSWORD_SECRET}"
+
+
+def _matrix_register_if_needed(localpart: str, password: str) -> None:
+    if not MATRIX_ENABLED:
+        return
+    url = f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/register"
+    payload = {
+        "username": localpart,
+        "password": password,
+        "auth": {"type": "m.login.dummy"},
+    }
+    try:
+        r = requests.post(url, json=payload, timeout=5)
+        if r.status_code in (200, 201):
+            return
+        # If user already exists, Synapse returns 400 with errcode M_USER_IN_USE
+        try:
+            data = r.json()
+            if r.status_code == 400 and (data.get("errcode") == "M_USER_IN_USE"):
+                return
+        except Exception:
+            pass
+    except Exception:
+        # Best-effort; creation might have already happened
+        return
+
+
+def _matrix_login(localpart: str, password: str) -> str | None:
+    if not MATRIX_ENABLED:
+        return None
+    url = f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/login"
+    payload = {"type": "m.login.password", "user": localpart, "password": password}
+    try:
+        r = requests.post(url, json=payload, timeout=5)
+        if r.status_code == 200:
+            tok = (r.json() or {}).get("access_token")
+            return tok
+    except Exception:
+        return None
+    return None
+
+
+def _matrix_create_trade_room(creator_token: str, invite_mxid: str, trade_id: str) -> tuple[str | None, str | None]:
+    if not MATRIX_ENABLED or not creator_token:
+        return None, None
+    url = f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/createRoom"
+    headers = {"Authorization": f"Bearer {creator_token}"}
+    alias_local = f"trade_{trade_id}"
+    payload = {
+        "preset": "private_chat",
+        "is_direct": True,
+        "invite": [invite_mxid],
+        "name": f"Trade {trade_id}",
+        "room_alias_name": alias_local,
+    }
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=8)
+        if r.status_code in (200, 201):
+            data = r.json() or {}
+            room_id = data.get("room_id")
+            alias = f"#" + alias_local + ":" + MATRIX_SERVER_NAME
+            return room_id, alias
+        else:
+            # Retry without alias if alias conflict
+            r2 = requests.post(url, headers=headers, json={**payload, "room_alias_name": None}, timeout=8)
+            if r2.status_code in (200, 201):
+                data = r2.json() or {}
+                return data.get("room_id"), None
+    except Exception:
+        return None, None
+    return None, None
+
+
+def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, trade_id: str) -> dict | None:
+    if not MATRIX_ENABLED:
+        return None
+    try:
+        s_local = _mx_username_for_user(seller_id)
+        b_local = _mx_username_for_user(buyer_id)
+        s_pw = _mx_password_for_user(seller_id)
+        b_pw = _mx_password_for_user(buyer_id)
+        _matrix_register_if_needed(s_local, s_pw)
+        _matrix_register_if_needed(b_local, b_pw)
+        creator_local = _mx_username_for_user(initiator_id)
+        other_mxid = _mx_mxid(b_local if initiator_id == seller_id else s_local)
+        tok = _matrix_login(creator_local, _mx_password_for_user(initiator_id))
+        room_id, alias = _matrix_create_trade_room(tok, other_mxid, trade_id)
+        if room_id:
+            return {
+                "room_id": room_id,
+                "alias": alias,
+                "seller_mxid": _mx_mxid(s_local),
+                "buyer_mxid": _mx_mxid(b_local),
+            }
+    except Exception:
+        return None
+    return None
+
 def _gen_trade_id() -> str:
     return secrets.token_urlsafe(8)
 
@@ -1394,6 +1523,16 @@ def trade_start(offer_id: str):
         ACTIVE_TRADE_ID_BY_USERNAME[seller_name] = trade_id
     if buyer_name:
         ACTIVE_TRADE_ID_BY_USERNAME[buyer_name] = trade_id
+    # Setup Matrix chat room for this trade (best-effort)
+    try:
+        mx = _matrix_setup_for_trade(seller_id, buyer_id, user_id, trade_id)
+        if mx:
+            TRADES[trade_id]['matrix'] = mx
+        else:
+            TRADES[trade_id]['matrix'] = None
+    except Exception as e:
+        TRADES[trade_id]['matrix'] = None
+        TRADES[trade_id]['last_error'] = f"matrix_setup_failed: {e}"
     return redirect(url_for('trade_view', trade_id=trade_id))
 
 
@@ -1423,7 +1562,16 @@ def trade_view(trade_id: str):
             role = 'buyer'
         else:
             role = 'seller'
-    return render_template('trade.html', trade=t, role=role)
+    # Build Matrix embed URL if available
+    matrix_embed_url = None
+    try:
+        mx = t.get('matrix') or {}
+        target = mx.get('alias') or mx.get('room_id')
+        if target and MATRIX_ELEMENT_URL:
+            matrix_embed_url = f"{MATRIX_ELEMENT_URL}/#/room/{target}"
+    except Exception:
+        matrix_embed_url = None
+    return render_template('trade.html', trade=t, role=role, matrix_embed_url=matrix_embed_url)
 
 
 @app.route('/trade/<trade_id>/money_sent', methods=['POST'])
@@ -1516,5 +1664,274 @@ def trade_payment_received(trade_id: str):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
 
+
+
+# --- Reverse proxy for Matrix Element to avoid localhost:8080 dependency ---
+ELEMENT_BACKEND_BASE = "http://pupero-matrix-element"
+
+@app.route('/element', defaults={'path': ''}, methods=['GET','HEAD'])
+@app.route('/element/', defaults={'path': ''}, methods=['GET','HEAD'])
+@app.route('/element/<path:path>', methods=['GET','HEAD'])
+def element_proxy(path: str):
+    # Build upstream URL
+    base = ELEMENT_BACKEND_BASE.rstrip('/')
+    target = f"{base}/"
+    if path:
+        target = f"{base}/{path}"
+    qs = request.query_string.decode('utf-8') if request.query_string else ''
+    if qs:
+        target = target + ("&" if "?" in target else "?") + qs
+    try:
+        # Proxy using the same method (GET/HEAD)
+        method = request.method
+        upstream = requests.request(method, target, stream=True, timeout=15)
+        status = upstream.status_code
+        content = upstream.content
+        headers = dict(upstream.headers)
+
+        # If HTML, inject <base href="/element/"> and rewrite root-relative URLs
+        ct = headers.get('Content-Type', '')
+        if isinstance(content, (bytes, bytearray)) and 'text/html' in ct.lower():
+            try:
+                html = content.decode('utf-8', errors='ignore')
+                # Inject base into <head> if not present
+                if '<base ' not in html:
+                    html = html.replace('<head>', '<head><base href="/element/">', 1)
+                # Rewrite common root-relative attrs to live under /element/
+                for attr in ['href', 'src', 'action']:
+                    html = html.replace(f'{attr}="/', f'{attr}="/element/')
+                # Rewrite CSS url(/...)
+                html = html.replace('url(/', 'url(/element/')
+                # De-dupe any accidental double prefixes
+                html = html.replace('/element//element/', '/element/')
+                content = html.encode('utf-8')
+            except Exception:
+                pass
+
+        resp = make_response(content, status)
+        # Copy essential headers
+        for h in ['Content-Type', 'Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+            if h in headers:
+                resp.headers[h] = headers[h]
+        return resp
+    except Exception as e:
+        return make_response(f"Element backend unavailable: {e}", 502)
+
+# Fallback proxies for common Element root-relative paths when embedded under /element
+@app.route('/config.json', methods=['GET','HEAD'])
+def element_config_proxy():
+    try:
+        upstream = requests.request(request.method, f"{ELEMENT_BACKEND_BASE.rstrip('/')}/config.json", timeout=15)
+        resp = make_response(upstream.content, upstream.status_code)
+        for h in ['Content-Type', 'Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+            if h in upstream.headers:
+                resp.headers[h] = upstream.headers[h]
+        return resp
+    except Exception as e:
+        return make_response(f"Element config unavailable: {e}", 502)
+
+@app.route('/bundles/<path:path>', methods=['GET','HEAD'])
+def element_bundles_proxy(path: str):
+    try:
+        upstream = requests.request(request.method, f"{ELEMENT_BACKEND_BASE.rstrip('/')}/bundles/{path}", timeout=15)
+        resp = make_response(upstream.content, upstream.status_code)
+        for h in ['Content-Type', 'Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+            if h in upstream.headers:
+                resp.headers[h] = upstream.headers[h]
+        return resp
+    except Exception as e:
+        return make_response(f"Element asset unavailable: {e}", 502)
+
+@app.route('/olm.wasm', methods=['GET','HEAD'])
+@app.route('/version', methods=['GET','HEAD'])
+@app.route('/favicon.ico', methods=['GET','HEAD'])
+def element_misc_proxy():
+    try:
+        # Map the request path directly to Element backend root
+        req_path = request.path.lstrip('/')
+        upstream = requests.request(request.method, f"{ELEMENT_BACKEND_BASE.rstrip('/')}/{req_path}", timeout=15)
+        resp = make_response(upstream.content, upstream.status_code)
+        for h in ['Content-Type', 'Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+            if h in upstream.headers:
+                resp.headers[h] = upstream.headers[h]
+        return resp
+    except Exception as e:
+        return make_response(f"Element resource unavailable: {e}", 502)
+
+
+# --- Native Matrix chat API (no iframe) ---
+
+def _json_response(obj, status: int = 200):
+    try:
+        resp = make_response(json.dumps(obj), status)
+        resp.headers['Content-Type'] = 'application/json'
+        return resp
+    except Exception:
+        return make_response('{"detail":"serialization_error"}', 500)
+
+
+def _is_trade_participant(t: dict, user_id: int, username: str | None) -> bool:
+    try:
+        if user_id and user_id in {int(t.get('buyer_id') or 0), int(t.get('seller_id') or 0)}:
+            return True
+        if username and username in {t.get('buyer_name'), t.get('seller_name')}:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+# Simple token cache and helpers for native chat
+MATRIX_TOKENS: dict[int, str] = {}
+
+
+def _matrix_get_token_for_user(user_id: int) -> str | None:
+    if not MATRIX_ENABLED:
+        return None
+    try:
+        uid = int(user_id)
+    except Exception:
+        return None
+    tok = MATRIX_TOKENS.get(uid)
+    if tok:
+        return tok
+    local = _mx_username_for_user(uid)
+    pw = _mx_password_for_user(uid)
+    try:
+        _matrix_register_if_needed(local, pw)
+    except Exception:
+        pass
+    tok = _matrix_login(local, pw)
+    if tok:
+        MATRIX_TOKENS[uid] = tok
+    return tok
+
+
+def _matrix_resolve_room_id_for_trade(trade: dict) -> str | None:
+    mx = (trade or {}).get('matrix') or {}
+    rid = mx.get('room_id')
+    if rid:
+        return rid
+    alias = mx.get('alias')
+    if not alias:
+        return None
+    try:
+        r = requests.get(f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/directory/room/{alias}", timeout=5)
+        if r.status_code == 200:
+            return (r.json() or {}).get('room_id')
+    except Exception:
+        return None
+    return None
+
+
+def _matrix_ensure_join(token: str, room_id_or_alias: str) -> None:
+    if not token or not room_id_or_alias:
+        return
+    try:
+        requests.post(
+            f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/rooms/{room_id_or_alias}/join",
+            headers={"Authorization": f"Bearer {token}"}, json={}, timeout=8
+        )
+    except Exception:
+        pass
+
+
+def _matrix_fetch_last_messages(token: str, room_id: str, limit: int = 50) -> dict:
+    try:
+        r = requests.get(
+            f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/rooms/{room_id}/messages",
+            headers={"Authorization": f"Bearer {token}"}, params={"dir": "b", "limit": int(limit)}, timeout=10
+        )
+        if r.status_code != 200:
+            return {"chunk": [], "start": None, "end": None}
+        return r.json() or {"chunk": []}
+    except Exception:
+        return {"chunk": [], "start": None, "end": None}
+
+
+def _matrix_send_message(token: str, room_id: str, body: str) -> str | None:
+    try:
+        r = requests.post(
+            f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/rooms/{room_id}/send/m.room.message",
+            headers={"Authorization": f"Bearer {token}"}, json={"msgtype": "m.text", "body": body}, timeout=10
+        )
+        if r.status_code in (200, 201):
+            return (r.json() or {}).get('event_id')
+    except Exception:
+        return None
+    return None
+
+
+@app.get('/api/chat/<trade_id>/messages')
+def api_chat_messages(trade_id: str):
+    if not request.cookies.get('access_token'):
+        return _json_response({"detail": "unauthorized"}, 401)
+    t = TRADES.get(trade_id)
+    if not t:
+        return _json_response({"detail": "trade_not_found"}, 404)
+    uid = _get_logged_in_user_id()
+    uname = _get_logged_in_username()
+    if not _is_trade_participant(t, uid, uname):
+        return _json_response({"detail": "forbidden"}, 403)
+    tok = _matrix_get_token_for_user(uid)
+    if not tok:
+        return _json_response({"detail": "matrix_unavailable"}, 502)
+    rid = _matrix_resolve_room_id_for_trade(t)
+    if not rid:
+        return _json_response({"detail": "room_unavailable"}, 503)
+    _matrix_ensure_join(tok, rid)
+    data = _matrix_fetch_last_messages(tok, rid, limit=50)
+    chunk = data.get('chunk') or []
+    # Keep only text messages and normalize
+    msgs = []
+    for ev in reversed(chunk):  # chronological
+        try:
+            if ev.get('type') != 'm.room.message':
+                continue
+            content = ev.get('content') or {}
+            body = content.get('body')
+            if not body:
+                continue
+            msgs.append({
+                'sender': ev.get('sender'),
+                'body': str(body),
+                'ts': ev.get('origin_server_ts'),
+                'event_id': ev.get('event_id')
+            })
+        except Exception:
+            continue
+    return _json_response({"messages": msgs})
+
+
+@app.post('/api/chat/<trade_id>/send')
+def api_chat_send(trade_id: str):
+    if not request.cookies.get('access_token'):
+        return _json_response({"detail": "unauthorized"}, 401)
+    t = TRADES.get(trade_id)
+    if not t:
+        return _json_response({"detail": "trade_not_found"}, 404)
+    uid = _get_logged_in_user_id()
+    uname = _get_logged_in_username()
+    if not _is_trade_participant(t, uid, uname):
+        return _json_response({"detail": "forbidden"}, 403)
+    text = None
+    try:
+        if request.is_json:
+            text = (request.get_json(silent=True) or {}).get('text')
+        if not text:
+            text = request.form.get('text')
+    except Exception:
+        text = None
+    if not text or not str(text).strip():
+        return _json_response({"detail": "empty"}, 400)
+    tok = _matrix_get_token_for_user(uid)
+    rid = _matrix_resolve_room_id_for_trade(t)
+    if not tok or not rid:
+        return _json_response({"detail": "matrix_unavailable"}, 502)
+    _matrix_ensure_join(tok, rid)
+    eid = _matrix_send_message(tok, rid, str(text))
+    if not eid:
+        return _json_response({"detail": "send_failed"}, 502)
+    return _json_response({"event_id": eid}, 200)

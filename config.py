@@ -37,3 +37,16 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 REMEMBER_ME_DAYS = int(os.getenv('REMEMBER_ME_DAYS', '30'))
 SECURE_COOKIES = _to_bool(os.getenv('SECURE_COOKIES'), default=False)
 SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+
+# Matrix chat integration (frontend)
+MATRIX_ENABLED = _to_bool(os.getenv('MATRIX_ENABLED', '1'), default=True)
+# Backend URL (as seen from the Flask container) to call Synapse Client API
+MATRIX_HS_URL_BACKEND = os.getenv('MATRIX_HS_URL_BACKEND', 'http://host.docker.internal:8008').rstrip('/')
+# Element Web URL (as seen from the user's browser) for embedding
+MATRIX_ELEMENT_URL = os.getenv('MATRIX_ELEMENT_URL', '/element').rstrip('/')
+# The homeserver name used by Synapse (MXIDs are @user:SERVER_NAME)
+MATRIX_SERVER_NAME = os.getenv('MATRIX_SERVER_NAME', 'localhost')
+# Local username prefix for mapping Pupero user IDs to Matrix usernames
+MATRIX_USER_PREFIX = os.getenv('MATRIX_USER_PREFIX', 'u')
+# Secret used to derive deterministic Matrix passwords for Pupero users
+MATRIX_DEFAULT_PASSWORD_SECRET = os.getenv('MATRIX_DEFAULT_PASSWORD_SECRET', 'change-me')

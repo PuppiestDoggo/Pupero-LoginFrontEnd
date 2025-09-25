@@ -38,6 +38,62 @@
 
 <hr>
 
+<h3>Chat</h3>
+<p>Use this chat to coordinate the fiat transfer and release. This chat is powered by Matrix and works without an iframe.</p>
+<div id="chat-panel" style="border:1px solid #ccc;height:360px;overflow:auto;padding:6px;background:#fafafa;"></div>
+<form id="chat-form" style="display:flex;gap:6px;margin-top:6px;">
+  <input id="chat-input" type="text" placeholder="Type a message..." style="flex:1;padding:6px;">
+  <button type="submit">Send</button>
+</form>
+<script>
+  (function(){
+    const tradeId = {{ trade.id | tojson }};
+    const panel = document.getElementById('chat-panel');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('chat-input');
+    let loading = false;
+    let firstLoad = true;
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    async function loadMessages(){
+      if(loading) return; loading = true;
+      try{
+        const res = await fetch(`/api/chat/${tradeId}/messages`, {cache:'no-store'});
+        if(!res.ok){
+          panel.innerHTML = `<div style="color:#b00;">Chat unavailable (${res.status})</div>`;
+          loading = false; return;
+        }
+        const data = await res.json();
+        const msgs = Array.isArray(data.messages) ? data.messages : [];
+        panel.innerHTML = msgs.map(m => `<div style="margin:4px 0;"><span style="color:#555;">${escapeHtml(m.sender || '')}:</span> ${escapeHtml(String(m.body || ''))}</div>`).join('');
+        if(firstLoad){ panel.scrollTop = panel.scrollHeight; firstLoad = false; }
+      }catch(e){
+        panel.innerHTML = `<div style="color:#b00;">Chat error: ${String(e)}</div>`;
+      }finally{
+        loading = false;
+      }
+    }
+
+    form.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      const text = (input.value || '').trim();
+      if(!text) return;
+      try{
+        const res = await fetch(`/api/chat/${tradeId}/send`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})});
+        if(res.ok){ input.value=''; loadMessages(); }
+      }catch(e){ /* ignore */ }
+    });
+
+    loadMessages();
+    setInterval(loadMessages, 2500);
+  })();
+</script>
+
+<hr>
+
 {% if role == 'buyer' %}
   <h3>You are the Buyer</h3>
   <ol>
