@@ -18,13 +18,18 @@
             <a href="{{ url_for('trades_list') }}">My Trades</a> |
             {% if active_trade_id %}<a href="{{ url_for('trade_current') }}"><strong>Active Trades</strong></a> |{% endif %}
             {% if not totp_enabled %}<a href="{{ url_for('totp_enable') }}">Enable TOTP</a> |{% endif %}
+            <a href="{{ url_for('debug_isadmin_toggle') }}">Admin: {{ 'ON' if is_admin else 'OFF' }}</a> |
             <a href="{{ url_for('logout') }}">Logout</a>
         {% else %}
             <a href="{{ url_for('register') }}">Register</a> |
             <a href="{{ url_for('login') }}">Login</a> |
-            <a href="{{ url_for('password_reset') }}">Reset Password</a>
+            <a href="{{ url_for('password_reset') }}">Reset Password</a> |
+            <a href="{{ url_for('debug_isadmin_toggle') }}">Admin: {{ 'ON' if is_admin else 'OFF' }}</a>
         {% endif %}
     </nav>
+    {% if is_admin %}
+    <div style="background:#222;color:#fff;padding:4px 8px;margin:6px 0;">Admin mode is ON (debug)</div>
+    {% endif %}
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <ul>

@@ -570,6 +570,41 @@ def logout():
     flash('Logged out', 'info')
     return resp
 
+# Debug/admin switch (frontend only)
+@app.route('/debug/isadmin/toggle')
+def debug_isadmin_toggle():
+    current = (request.cookies.get('isadmin') or '').strip().lower()
+    new = '0'
+    if current not in {'1','true','yes','on'}:
+        new = '1'
+    resp = make_response(redirect(request.referrer or url_for('home')))
+    try:
+        resp.set_cookie('isadmin', new, max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+    except Exception:
+        resp.set_cookie('isadmin', new)
+    flash(('Admin mode enabled' if new=='1' else 'Admin mode disabled'), 'info')
+    return resp
+
+@app.route('/debug/isadmin/on')
+def debug_isadmin_on():
+    resp = make_response(redirect(request.referrer or url_for('home')))
+    try:
+        resp.set_cookie('isadmin', '1', max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+    except Exception:
+        resp.set_cookie('isadmin', '1')
+    flash('Admin mode enabled', 'info')
+    return resp
+
+@app.route('/debug/isadmin/off')
+def debug_isadmin_off():
+    resp = make_response(redirect(request.referrer or url_for('home')))
+    try:
+        resp.set_cookie('isadmin', '0', max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+    except Exception:
+        resp.set_cookie('isadmin', '0')
+    flash('Admin mode disabled', 'info')
+    return resp
+
 # Offers integration
 @app.route('/offers', methods=['GET'])
 def offers():
@@ -1153,6 +1188,13 @@ def _get_active_trade_id_for_user(user_id: int) -> str | None:
 @app.context_processor
 def inject_trade_shortcuts():
     tid = None
+    is_admin = False
+    try:
+        # Admin mode comes from a simple cookie for debugging
+        raw_admin = request.cookies.get('isadmin') or ''
+        is_admin = raw_admin.strip().lower() in {'1','true','yes','on'}
+    except Exception:
+        is_admin = False
     try:
         if request.cookies.get('access_token'):
             uid = _get_logged_in_user_id()
@@ -1191,7 +1233,7 @@ def inject_trade_shortcuts():
                         continue
     except Exception:
         tid = None
-    return dict(active_trade_id=tid)
+    return dict(active_trade_id=tid, is_admin=is_admin)
 
 # Quick access to current active trade for the logged-in user
 @app.route('/trade/current', methods=['GET'])
