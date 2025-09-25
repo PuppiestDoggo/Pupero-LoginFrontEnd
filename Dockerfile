@@ -10,10 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apk add --no-cache build-base gcc musl-dev linux-headers libffi-dev mariadb-connector-c-dev python3-dev
 
 WORKDIR /app
-COPY FlaskProject/requirements.txt /app/requirements.txt
+COPY Pupero-LoginFrontEnd/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY FlaskProject /app
+COPY Pupero-LoginFrontEnd/ /app
 
 EXPOSE 5000
 

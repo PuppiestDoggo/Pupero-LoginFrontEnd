@@ -11,9 +11,9 @@ load_dotenv()
 def _normalize(val: str | None, kind: str) -> str:
     # kind: 'backend','offers','transactions'
     defaults = {
-        'backend': 'http://api-manager:8000/auth',
-        'offers': 'http://api-manager:8000',
-        'transactions': 'http://api-manager:8000/transactions',
+        'backend': 'http://pupero-api-manager:8000/auth',
+        'offers': 'http://pupero-api-manager:8000',
+        'transactions': 'http://pupero-api-manager:8000/transactions',
     }
     if not val:
         return defaults[kind]
