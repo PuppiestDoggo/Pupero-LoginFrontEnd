@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}My Trades{% endblock %}
+{% block content %}
+<h1>My Trades</h1>
+{% if trades and trades|length > 0 %}
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th align="left">Trade ID</th>
+        <th align="left">Offer</th>
+        <th align="left">Role</th>
+        <th align="left">Amount (XMR)</th>
+        <th align="left">Status</th>
+        <th align="left">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in trades %}
+        <tr>
+          <td>{{ t.id }}</td>
+          <td>{{ t.offer_title or t.offer_id }}</td>
+          <td>{{ t.role }}</td>
+          <td>{{ '%.4f'|format(t.amount_xmr) }}</td>
+          <td>
+            {% if t.status == 'await_buyer' %}Waiting buyer{% elif t.status == 'await_seller' %}Waiting seller{% else %}{{ t.status }}{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('trade_view', trade_id=t.id) }}">Open</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No trades yet.</p>
+{% endif %}
+{% endblock %}

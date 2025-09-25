@@ -2,6 +2,7 @@
 {% block title %}Buy Offers{% endblock %}
 {% block content %}
 <h1>Buy Monero</h1>
+<p style="margin:6px 0 12px 0;">These are <strong>SELL XMR</strong> offers from other users. If you open a trade from this page, <strong>you will BUY XMR</strong> and pay fiat externally.</p>
 <form method="get" action="{{ url_for('buy') }}" style="display:grid;gap:8px;grid-template-columns:repeat(4, minmax(180px, 1fr));align-items:end;margin-bottom:1rem;">
   <label>Cryptocurrency
     <select name="crypto" disabled>
@@ -39,7 +40,8 @@
 <ul>
   {% for o in offers %}
   <li>
-    <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a> — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">SELL XMR</span>
+    <a href="{{ url_for('offer_detail', offer_id=o.id) }}" style="margin-left:6px;">{{ o.title }}</a> — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
   </li>
   {% else %}
   <li>No offers found.</li>

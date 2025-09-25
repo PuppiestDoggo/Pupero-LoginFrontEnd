@@ -582,7 +582,17 @@ def offers():
         params = {'status': status} if status else {}
         resp = requests.get(f"{OFFERS_SERVICE_URL}/offers", params=params, timeout=10)
         offers = resp.json() if resp.status_code == 200 else []
-        offers = [_attach_seller_name(o) for o in offers]
+        # Attach seller_name and parse side for clarity badges
+        enriched = []
+        for o in offers:
+            o = _attach_seller_name(o)
+            try:
+                ad = _parse_offer_desc(o.get('desc'))
+                o['__side'] = (ad.get('side') or 'sell').lower()
+            except Exception:
+                o['__side'] = 'sell'
+            enriched.append(o)
+        offers = enriched
     except Exception as e:
         offers = []
         flash(f'Failed to load offers: {e}', 'error')
@@ -605,10 +615,15 @@ def offer_detail(offer_id: str):
         ad = _parse_offer_desc(offer.get('desc'))
         price_per_xmr = _compute_price_per_xmr(ad)
         ad['schedule_human'] = _humanize_schedule(ad.get('schedule'))
+        # Compute clear role context for the current user
+        uid = _get_logged_in_user_id() or 0
+        seller_id, buyer_id, side = _resolve_roles_for_offer(offer, uid)
+        is_user_buyer = (int(uid) == int(buyer_id))
+        is_user_seller = (int(uid) == int(seller_id))
     except Exception as e:
         flash(f'Failed to load offer: {e}', 'error')
         return redirect(url_for('offers'))
-    return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr)
+    return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr, offer_side=side, is_user_buyer=is_user_buyer, is_user_seller=is_user_seller)
 
 
 @app.route('/offers/<offer_id>/bid', methods=['POST'])
@@ -835,12 +850,13 @@ def create_ad():
                 price = float(request.form.get('price') or 1.0)
             except Exception:
                 price = 1.0
-            seller_id = request.form.get('seller_id')
+            # Always bind the offer to the logged-in user as owner
+            owner_id = _get_logged_in_user_id()
             payload = {
                 'title': title,
                 'desc': json.dumps(desc_payload),
                 'price': price,
-                'seller_id': int(seller_id) if seller_id else 0,
+                'seller_id': int(owner_id) if owner_id else 0,
             }
             try:
                 r = requests.post(f"{OFFERS_SERVICE_URL}/offers", json=payload, timeout=10)
@@ -875,14 +891,26 @@ def my_ads():
     if not request.cookies.get('access_token'):
         flash('Please log in to view your ads.', 'warning')
         return redirect(url_for('login'))
-    # In this minimal implementation, we do not have auth binding; show all offers
     offers = []
+    uid = _get_logged_in_user_id()
     my_name = _get_logged_in_username()
     try:
         resp = requests.get(f"{OFFERS_SERVICE_URL}/offers", timeout=10)
         if resp.status_code == 200:
-            offers = resp.json()
-            offers = [_attach_seller_name(o) for o in offers]
+            all_offers = resp.json() or []
+            # Enrich with seller_name for legacy entries
+            all_offers = [_attach_seller_name(o) for o in all_offers]
+            # Keep only current user's ads. Prefer seller_id; fallback to seller_name for legacy offers.
+            filtered = []
+            for o in all_offers:
+                try:
+                    sid = int(o.get('seller_id') or 0)
+                except Exception:
+                    sid = 0
+                sname = (o.get('seller_name') or '').strip() if isinstance(o.get('seller_name'), str) else ''
+                if (uid and sid == uid) or (my_name and sname and my_name == sname):
+                    filtered.append(o)
+            offers = filtered
     except Exception as e:
         flash(f'Failed to load offers: {e}', 'error')
     return render_template('my_ads.html', offers=offers, my_name=my_name)
@@ -1083,6 +1111,366 @@ def balances_withdraw():
     except Exception as e:
         flash(f'Withdraw failed: {e}', 'error')
     return redirect(url_for('balances'))
+
+
+# --- In-memory Trade flow (database-money only) ---
+TRADES: dict[str, dict] = {}
+# Map user_id -> current active trade_id for quick access
+ACTIVE_TRADE_ID_BY_USER: dict[int, str] = {}
+# Map username -> current active trade_id (fallback for legacy offers with unknown owner IDs)
+ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
+
+def _gen_trade_id() -> str:
+    return secrets.token_urlsafe(8)
+
+def _get_active_trade_id_for_username(username: str) -> str | None:
+    if not username:
+        return None
+    tid = ACTIVE_TRADE_ID_BY_USERNAME.get(username)
+    if not tid:
+        return None
+    t = TRADES.get(tid)
+    if not t or t.get('status') == 'completed':
+        ACTIVE_TRADE_ID_BY_USERNAME.pop(username, None)
+        return None
+    return tid
+
+
+def _get_active_trade_id_for_user(user_id: int) -> str | None:
+    if not user_id:
+        return None
+    tid = ACTIVE_TRADE_ID_BY_USER.get(int(user_id))
+    if not tid:
+        return None
+    t = TRADES.get(tid)
+    if not t or t.get('status') == 'completed':
+        # Cleanup mapping if stale
+        ACTIVE_TRADE_ID_BY_USER.pop(int(user_id), None)
+        return None
+    return tid
+
+# Inject active_trade_id into templates for navbar convenience
+@app.context_processor
+def inject_trade_shortcuts():
+    tid = None
+    try:
+        if request.cookies.get('access_token'):
+            uid = _get_logged_in_user_id()
+            uname = _get_logged_in_username()
+            # Try quick mappings first
+            tid = _get_active_trade_id_for_user(uid)
+            if not tid:
+                tid = _get_active_trade_id_for_username(uname)
+            # Fallback: scan in-memory trades to discover active ones involving this user
+            if not tid:
+                for t in list(TRADES.values()):
+                    try:
+                        if t.get('status') == 'completed':
+                            continue
+                        buyer_id = int(t.get('buyer_id') or 0)
+                        seller_id = int(t.get('seller_id') or 0)
+                        buyer_name = t.get('buyer_name')
+                        seller_name = t.get('seller_name')
+                        is_participant = (
+                            (uid and uid in (buyer_id, seller_id)) or
+                            (uname and uname in {buyer_name, seller_name})
+                        )
+                        if is_participant:
+                            tid = t.get('id')
+                            # Backfill quick-access caches so the navbar stays consistent
+                            if seller_id:
+                                ACTIVE_TRADE_ID_BY_USER[seller_id] = tid
+                            if buyer_id:
+                                ACTIVE_TRADE_ID_BY_USER[buyer_id] = tid
+                            if seller_name:
+                                ACTIVE_TRADE_ID_BY_USERNAME[seller_name] = tid
+                            if buyer_name:
+                                ACTIVE_TRADE_ID_BY_USERNAME[buyer_name] = tid
+                            break
+                    except Exception:
+                        continue
+    except Exception:
+        tid = None
+    return dict(active_trade_id=tid)
+
+# Quick access to current active trade for the logged-in user
+@app.route('/trade/current', methods=['GET'])
+def trade_current():
+    if not request.cookies.get('access_token'):
+        flash('Please log in to view your trade.', 'warning')
+        return redirect(url_for('login'))
+    uid = _get_logged_in_user_id()
+    tid = _get_active_trade_id_for_user(uid)
+    if not tid:
+        uname = _get_logged_in_username()
+        tid = _get_active_trade_id_for_username(uname)
+    if tid:
+        return redirect(url_for('trade_view', trade_id=tid))
+    flash('No active trade found.', 'info')
+    return redirect(url_for('offers'))
+
+# List all trades (in this process) involving the current user
+@app.route('/trades', methods=['GET'])
+def trades_list():
+    if not request.cookies.get('access_token'):
+        flash('Please log in to view trades.', 'warning')
+        return redirect(url_for('login'))
+    uid = _get_logged_in_user_id()
+    uname = _get_logged_in_username()
+    my_trades = []
+    # Make a shallow copy to avoid concurrent modification surprises
+    for t in list(TRADES.values()):
+        try:
+            matched = False
+            role = None
+            # Match by user_id first
+            if int(t.get('buyer_id')) == uid:
+                matched = True
+                role = 'buyer'
+            elif int(t.get('seller_id')) == uid:
+                matched = True
+                role = 'seller'
+            # Fallback: match by username if ids are missing/legacy
+            if not matched and uname:
+                if uname == t.get('buyer_name'):
+                    matched = True
+                    role = 'buyer'
+                elif uname == t.get('seller_name'):
+                    matched = True
+                    role = 'seller'
+            if matched:
+                my_trades.append({**t, 'role': role})
+        except Exception:
+            continue
+    # Sort newest first
+    my_trades.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+    return render_template('trades.html', trades=my_trades, user_id=uid)
+
+
+def _resolve_roles_for_offer(offer: dict, current_user_id: int) -> tuple[int, int, str]:
+    """
+    Return (seller_id, buyer_id, side) where side is the offer side ('sell' means offer owner sells XMR).
+    If offer side is 'buy', the current user is the seller (providing XMR) and offer owner is the buyer.
+    """
+    try:
+        raw_desc = offer.get('desc')
+        ad = _parse_offer_desc(raw_desc)
+        side = (ad.get('side') or 'sell').lower()
+    except Exception:
+        side = 'sell'
+    offer_owner_id = int(offer.get('seller_id') or 0)
+    if side == 'sell':
+        return offer_owner_id, current_user_id, 'sell'
+    else:
+        return current_user_id, offer_owner_id, 'buy'
+
+
+@app.route('/offers/<offer_id>/trade/start', methods=['POST'])
+def trade_start(offer_id: str):
+    # Require login
+    if not request.cookies.get('access_token'):
+        flash('Please log in to start a trade.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('login'))
+
+    # Parse amounts similar to offer_bid
+    fiat_amount_raw = request.form.get('fiat_amount')
+    xmr_amount_raw = request.form.get('xmr_amount')
+
+    def _to_float(val):
+        try:
+            return float(val)
+        except Exception:
+            return None
+
+    fiat_amount = _to_float(fiat_amount_raw) if fiat_amount_raw not in (None, '') else None
+    xmr_amount = _to_float(xmr_amount_raw) if xmr_amount_raw not in (None, '') else None
+
+    # Fetch offer and compute XMR if needed
+    try:
+        r_offer = requests.get(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", timeout=10)
+        if r_offer.status_code != 200:
+            flash('Offer not found', 'error')
+            return redirect(url_for('offers'))
+        offer = r_offer.json()
+        ad = _parse_offer_desc(offer.get('desc'))
+        price_per_xmr = _compute_price_per_xmr(ad)
+        if (xmr_amount is None or xmr_amount <= 0) and fiat_amount is not None and fiat_amount > 0:
+            xmr_amount = fiat_amount / price_per_xmr if price_per_xmr > 0 else 0
+        if xmr_amount is None or xmr_amount <= 0:
+            flash('Invalid amount', 'error')
+            return redirect(url_for('offer_detail', offer_id=offer_id))
+    except Exception as e:
+        flash(f'Failed to prepare trade: {e}', 'error')
+        return redirect(url_for('offer_detail', offer_id=offer_id))
+
+    # Determine roles
+    seller_id, buyer_id, side = _resolve_roles_for_offer(offer, user_id)
+    # Derive participant usernames for fallback authorization/alerts
+    offer_owner_name = ""
+    try:
+        ad_names = _parse_offer_desc(offer.get('desc'))
+        offer_owner_name = ad_names.get('seller_name') or ""
+    except Exception:
+        offer_owner_name = ""
+    current_name = _get_logged_in_username() or ""
+    if side == 'sell':
+        seller_name = offer_owner_name
+        buyer_name = current_name
+    else:
+        seller_name = current_name
+        buyer_name = offer_owner_name
+
+    # Create trade
+    trade_id = _gen_trade_id()
+    TRADES[trade_id] = {
+        'id': trade_id,
+        'offer_id': offer.get('id'),
+        'offer_title': offer.get('title'),
+        'seller_id': seller_id,
+        'buyer_id': buyer_id,
+        'seller_name': seller_name,
+        'buyer_name': buyer_name,
+        'amount_xmr': float(xmr_amount),
+        'status': 'await_buyer',  # buyer must send fiat, then click Money sent
+        'side': side,
+        'created_at': int(time.time()),
+        'buyer_confirmed_at': None,
+        'seller_confirmed_at': None,
+        'completed_at': None,
+        'last_error': None,
+    }
+    # Set quick-access mapping for both participants
+    if int(seller_id):
+        ACTIVE_TRADE_ID_BY_USER[int(seller_id)] = trade_id
+    if int(buyer_id):
+        ACTIVE_TRADE_ID_BY_USER[int(buyer_id)] = trade_id
+    if seller_name:
+        ACTIVE_TRADE_ID_BY_USERNAME[seller_name] = trade_id
+    if buyer_name:
+        ACTIVE_TRADE_ID_BY_USERNAME[buyer_name] = trade_id
+    return redirect(url_for('trade_view', trade_id=trade_id))
+
+
+@app.route('/trade/<trade_id>', methods=['GET'])
+def trade_view(trade_id: str):
+    if not request.cookies.get('access_token'):
+        flash('Please log in to view trade.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    t = TRADES.get(trade_id)
+    if not t:
+        flash('Trade not found', 'error')
+        return redirect(url_for('offers'))
+    if user_id not in (t['buyer_id'], t['seller_id']):
+        uname = _get_logged_in_username()
+        if not uname or uname not in {t.get('buyer_name'), t.get('seller_name')}:
+            flash('Not authorized for this trade', 'error')
+            return redirect(url_for('offers'))
+    # Resolve role (user_id first, then username fallback)
+    if user_id == t['buyer_id']:
+        role = 'buyer'
+    elif user_id == t['seller_id']:
+        role = 'seller'
+    else:
+        uname = _get_logged_in_username()
+        if uname == t.get('buyer_name'):
+            role = 'buyer'
+        else:
+            role = 'seller'
+    return render_template('trade.html', trade=t, role=role)
+
+
+@app.route('/trade/<trade_id>/money_sent', methods=['POST'])
+def trade_money_sent(trade_id: str):
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    t = TRADES.get(trade_id)
+    if not t:
+        flash('Trade not found', 'error')
+        return redirect(url_for('offers'))
+    if user_id != t['buyer_id']:
+        flash('Only the buyer can mark money as sent.', 'error')
+        return redirect(url_for('trade_view', trade_id=trade_id))
+    if t['status'] != 'await_buyer':
+        flash('Invalid trade state.', 'warning')
+        return redirect(url_for('trade_view', trade_id=trade_id))
+    t['status'] = 'await_seller'
+    t['buyer_confirmed_at'] = int(time.time())
+    TRADES[trade_id] = t
+    flash('Marked as money sent. Waiting for seller confirmation.', 'info')
+    return redirect(url_for('trade_view', trade_id=trade_id))
+
+
+@app.route('/trade/<trade_id>/payment_received', methods=['POST'])
+def trade_payment_received(trade_id: str):
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    t = TRADES.get(trade_id)
+    if not t:
+        flash('Trade not found', 'error')
+        return redirect(url_for('offers'))
+    if user_id != t['seller_id']:
+        flash('Only the seller can confirm payment received.', 'error')
+        return redirect(url_for('trade_view', trade_id=trade_id))
+    if t['status'] != 'await_seller':
+        flash('Buyer has not marked money sent yet.', 'warning')
+        return redirect(url_for('trade_view', trade_id=trade_id))
+
+    # Perform database-money transfer from seller -> buyer
+    payload = {
+        'from_user_id': int(t['seller_id']),
+        'to_user_id': int(t['buyer_id']),
+        'amount_xmr': float(t['amount_xmr']),
+    }
+    try:
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/transfer", json=payload, timeout=15)
+        if r.status_code == 200:
+            try:
+                res = r.json()
+            except Exception:
+                res = {}
+            t['status'] = 'completed'
+            t['seller_confirmed_at'] = int(time.time())
+            t['completed_at'] = t['seller_confirmed_at']
+            t['ledger_tx'] = res
+            t['last_error'] = None
+            TRADES[trade_id] = t
+            # Clear quick-access entries if they point to this completed trade
+            sid = int(t['seller_id'])
+            bid = int(t['buyer_id'])
+            if ACTIVE_TRADE_ID_BY_USER.get(sid) == trade_id:
+                ACTIVE_TRADE_ID_BY_USER.pop(sid, None)
+            if ACTIVE_TRADE_ID_BY_USER.get(bid) == trade_id:
+                ACTIVE_TRADE_ID_BY_USER.pop(bid, None)
+            # Also clear username-based quick-access mappings
+            sname = t.get('seller_name')
+            bname = t.get('buyer_name')
+            if sname and ACTIVE_TRADE_ID_BY_USERNAME.get(sname) == trade_id:
+                ACTIVE_TRADE_ID_BY_USERNAME.pop(sname, None)
+            if bname and ACTIVE_TRADE_ID_BY_USERNAME.get(bname) == trade_id:
+                ACTIVE_TRADE_ID_BY_USERNAME.pop(bname, None)
+            flash('Trade completed. XMR transferred (database money).', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            t['last_error'] = str(detail)
+            TRADES[trade_id] = t
+            flash(f'Transfer failed: {detail}', 'error')
+    except Exception as e:
+        t['last_error'] = str(e)
+        TRADES[trade_id] = t
+        flash(f'Transfer failed: {e}', 'error')
+    return redirect(url_for('trade_view', trade_id=trade_id))
 
 
 if __name__ == '__main__':

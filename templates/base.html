@@ -15,6 +15,8 @@
             <a href="{{ url_for('my_ads') }}">My Ads</a> |
             <a href="{{ url_for('profile') }}">Profile</a> |
             <a href="{{ url_for('balances') }}">Balances</a> |
+            <a href="{{ url_for('trades_list') }}">My Trades</a> |
+            {% if active_trade_id %}<a href="{{ url_for('trade_current') }}"><strong>Active Trades</strong></a> |{% endif %}
             {% if not totp_enabled %}<a href="{{ url_for('totp_enable') }}">Enable TOTP</a> |{% endif %}
             <a href="{{ url_for('logout') }}">Logout</a>
         {% else %}

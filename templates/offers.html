@@ -13,14 +13,18 @@
   <button type="submit">Filter</button>
 </form>
 
-<!-- Creation of offers is removed; this page lists existing Buy/Sell ads -->
-
 <h2>List</h2>
 <ul>
   {% for o in offers %}
+    {% set side = (o.__side or 'sell')|lower %}
     <li>
-      <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
-      — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+      {% if side == 'sell' %}
+        <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">SELL XMR</span>
+      {% else %}
+        <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">BUY XMR</span>
+      {% endif %}
+      <a href="{{ url_for('offer_detail', offer_id=o.id) }}" style="margin-left:6px;">{{ o.title }}</a>
+      — {{ o.price }} XMR — {{ o.status }} — owner: {{ o.seller_name or 'unknown' }}
     </li>
   {% else %}
     <li>No offers found.</li>

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Trade {{ trade.id }}{% endblock %}
+{% block content %}
+<h1>Trade</h1>
+
+{% set side = (trade.side or 'sell')|lower %}
+<div style="margin:8px 0;padding:8px;border:1px solid #ddd;background:#f9f9f9;">
+  {% if side == 'sell' %}
+    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">SELL XMR</span>
+  {% else %}
+    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">BUY XMR</span>
+  {% endif %}
+  <span style="margin-left:8px;">Flow: <strong>Buyer sends fiat</strong> ➜ <strong>Seller releases XMR</strong> (database money).</span>
+</div>
+
+<div style="display:grid;gap:8px;max-width:760px;grid-template-columns:1fr 2fr;">
+  <div><strong>Trade ID</strong></div><div>{{ trade.id }}</div>
+  <div><strong>Offer</strong></div><div>{{ trade.offer_title or trade.offer_id }}</div>
+  <div><strong>Amount</strong></div><div>{{ '%.4f'|format(trade.amount_xmr) }} XMR (database money)</div>
+  <div><strong>Seller (XMR)</strong></div><div>{{ trade.seller_id }}</div>
+  <div><strong>Buyer (fiat)</strong></div><div>{{ trade.buyer_id }}</div>
+  <div><strong>Status</strong></div>
+  <div>
+    {% if trade.status == 'await_buyer' %}
+      Waiting for buyer to send payment and click "Money sent".
+    {% elif trade.status == 'await_seller' %}
+      Buyer marked money as sent. Waiting for seller to confirm receipt.
+    {% elif trade.status == 'completed' %}
+      Completed. XMR transferred to buyer (internal ledger).
+    {% else %}
+      {{ trade.status }}
+    {% endif %}
+    {% if trade.last_error %}
+      <div style="color:#b00;margin-top:6px;">Last error: {{ trade.last_error }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<hr>
+
+{% if role == 'buyer' %}
+  <h3>You are the Buyer</h3>
+  <ol>
+    <li>Send the agreed fiat payment to the seller using the specified payment method (outside Pupero).</li>
+    <li>Once sent, click the button below.</li>
+  </ol>
+  {% if trade.status == 'await_buyer' %}
+  <form method="post" action="{{ url_for('trade_money_sent', trade_id=trade.id) }}">
+    <button type="submit">Money sent</button>
+  </form>
+  {% else %}
+    <p>No action available. Waiting for the seller.</p>
+  {% endif %}
+{% elif role == 'seller' %}
+  <h3>You are the Seller</h3>
+  <ol>
+    <li>Wait for the buyer to send fiat and click "Money sent".</li>
+    <li>After you receive the payment, click the button below to release XMR to the buyer (internal ledger transfer).</li>
+  </ol>
+  {% if trade.status == 'await_seller' %}
+  <form method="post" action="{{ url_for('trade_payment_received', trade_id=trade.id) }}">
+    <button type="submit">I received my money – Release XMR</button>
+  </form>
+  {% elif trade.status == 'await_buyer' %}
+    <p>Waiting for the buyer to send payment.</p>
+  {% else %}
+    <p>No action available.</p>
+  {% endif %}
+{% endif %}
+
+<p style="margin-top:16px;"><a href="{{ url_for('offers') }}">Back to offers</a></p>
+{% endblock %}
