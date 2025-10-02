@@ -9,12 +9,16 @@
 {% else %}
 <p style="color:#555;">No subaddress yet for your account.</p>
 {% endif %}
+<form method="post" action="{{ url_for('rotate_address') }}" style="margin:8px 0;">
+  <button type="submit">Create a new subaddress</button>
+  <span style="color:#555; font-size:0.9em;">Old subaddresses will be disabled and cleaned up after ~1 day if empty.</span>
+</form>
 
 {% if balance %}
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><th align="left">User ID</th><td>{{ balance.user_id }}</td></tr>
-  <tr><th align="left">Fake XMR (in DB)</th><td>{{ balance.fake_xmr }}</td></tr>
-  <tr><th align="left">Real XMR (external)</th><td>{{ balance.real_xmr }}</td></tr>
+  <tr><th align="left">Fake XMR (in DB)</th><td>{{ ('%.10f' % balance.fake_xmr).rstrip('0').rstrip('.') }}</td></tr>
+  <tr><th align="left">Real XMR (external)</th><td>{{ ('%.10f' % balance.real_xmr).rstrip('0').rstrip('.') }}</td></tr>
   <tr><th align="left">Updated</th><td>{{ balance.updated_at }}</td></tr>
 </table>
 {% else %}
@@ -30,7 +34,7 @@
     </select>
   </label>
   <label>Amount (XMR)
-    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
   </label>
   <button type="submit">Increase</button>
 </form>
@@ -44,7 +48,7 @@
     </select>
   </label>
   <label>Amount (XMR)
-    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
   </label>
   <button type="submit">Decrease</button>
 </form>
@@ -55,7 +59,7 @@
     <input type="text" name="to_address" style="width:100%;" required>
   </label>
   <label>Amount (XMR)
-    <input type="number" name="amount_xmr" step="0.0001" min="0" required>
+    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
   </label>
   <button type="submit">Send</button>
 </form>

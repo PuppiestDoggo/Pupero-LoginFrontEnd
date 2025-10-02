@@ -1046,7 +1046,19 @@ def balances():
         if r2.status_code == 200:
             addrs = r2.json() or []
             if isinstance(addrs, list) and addrs:
-                monero_address = addrs[0].get('address') or None
+                # Prefer the most recent active (not disabled) address
+                try:
+                    sorted_addrs = sorted(addrs, key=lambda a: a.get('created_at') or a.get('id') or 0, reverse=True)
+                except Exception:
+                    sorted_addrs = addrs
+                chosen = None
+                for a in sorted_addrs:
+                    if not a.get('is_disabled'):
+                        chosen = a
+                        break
+                if not chosen:
+                    chosen = sorted_addrs[0]
+                monero_address = (chosen or {}).get('address') or None
         else:
             # Non-fatal; just log to flash for visibility
             try:
@@ -1495,8 +1507,35 @@ def trade_start(offer_id: str):
         seller_name = current_name
         buyer_name = offer_owner_name
 
-    # Create trade
+    # Create trade id early to tie reservation context
     trade_id = _gen_trade_id()
+
+    # Reserve seller's XMR immediately (escrow lock)
+    try:
+        reserve_payload = {
+            'seller_id': int(seller_id),
+            'amount_xmr': float(xmr_amount),
+            'offer_id': str(offer.get('id')) if offer.get('id') is not None else None,
+            'trade_id': trade_id,
+        }
+        r_res = requests.post(f"{TRANSACTIONS_SERVICE_URL}/reserve", json=reserve_payload, timeout=10)
+        if r_res.status_code != 200:
+            try:
+                detail = r_res.json().get('detail', r_res.text)
+            except Exception:
+                detail = r_res.text
+            flash(f'Cannot open trade: {detail}', 'error')
+            return redirect(url_for('offer_detail', offer_id=offer_id))
+        res_body = r_res.json() or {}
+        reservation_id = res_body.get('id')
+        if not reservation_id:
+            flash('Cannot open trade: reservation failed (no id)', 'error')
+            return redirect(url_for('offer_detail', offer_id=offer_id))
+    except Exception as e:
+        flash(f'Cannot open trade: {e}', 'error')
+        return redirect(url_for('offer_detail', offer_id=offer_id))
+
+    # Create trade in memory
     TRADES[trade_id] = {
         'id': trade_id,
         'offer_id': offer.get('id'),
@@ -1512,6 +1551,7 @@ def trade_start(offer_id: str):
         'buyer_confirmed_at': None,
         'seller_confirmed_at': None,
         'completed_at': None,
+        'reservation_id': reservation_id,
         'last_error': None,
     }
     # Set quick-access mapping for both participants
@@ -1614,14 +1654,18 @@ def trade_payment_received(trade_id: str):
         flash('Buyer has not marked money sent yet.', 'warning')
         return redirect(url_for('trade_view', trade_id=trade_id))
 
-    # Perform database-money transfer from seller -> buyer
+    # Commit escrow reservation to transfer from seller -> buyer
+    reservation_id = t.get('reservation_id')
+    if not reservation_id:
+        t['last_error'] = 'Reservation not found for this trade.'
+        TRADES[trade_id] = t
+        flash('Transfer failed: reservation missing', 'error')
+        return redirect(url_for('trade_view', trade_id=trade_id))
     payload = {
-        'from_user_id': int(t['seller_id']),
         'to_user_id': int(t['buyer_id']),
-        'amount_xmr': float(t['amount_xmr']),
     }
     try:
-        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/transfer", json=payload, timeout=15)
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/reserve/{reservation_id}/commit", json=payload, timeout=15)
         if r.status_code == 200:
             try:
                 res = r.json()
@@ -1647,7 +1691,7 @@ def trade_payment_received(trade_id: str):
                 ACTIVE_TRADE_ID_BY_USERNAME.pop(sname, None)
             if bname and ACTIVE_TRADE_ID_BY_USERNAME.get(bname) == trade_id:
                 ACTIVE_TRADE_ID_BY_USERNAME.pop(bname, None)
-            flash('Trade completed. XMR transferred (database money).', 'success')
+            flash('Trade completed. XMR transferred (escrow committed).', 'success')
         else:
             try:
                 detail = r.json().get('detail', r.text)
@@ -1935,3 +1979,36 @@ def api_chat_send(trade_id: str):
     if not eid:
         return _json_response({"detail": "send_failed"}, 502)
     return _json_response({"event_id": eid}, 200)
+
+
+
+@app.route('/addresses/rotate', methods=['POST'])
+def rotate_address():
+    if not request.cookies.get('access_token'):
+        flash('Please log in.', 'warning')
+        return redirect(url_for('login'))
+    user_id = _get_logged_in_user_id()
+    if not user_id:
+        flash('Could not identify user.', 'error')
+        return redirect(url_for('balances'))
+    # Generate a friendly label
+    try:
+        label = f"user_{int(user_id)}_{int(time.time())}"
+        r = requests.post(f"{OFFERS_SERVICE_URL}/monero/addresses/rotate", json={"user_id": int(user_id), "label": label}, timeout=20)
+        if r.status_code == 200:
+            data = {}
+            try:
+                data = r.json() or {}
+            except Exception:
+                data = {}
+            disabled_prior = data.get('disabled_prior')
+            flash(f'New subaddress created. Disabled {disabled_prior} previous address(es).', 'success')
+        else:
+            try:
+                detail = r.json().get('detail', r.text)
+            except Exception:
+                detail = r.text
+            flash(f'Could not create new subaddress: {detail}', 'error')
+    except Exception as e:
+        flash(f'Could not create new subaddress: {e}', 'error')
+    return redirect(url_for('balances'))
