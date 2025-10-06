@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Monero Rates{% endblock %}
+{% block content %}
+<h1>Monero Conversion Rates</h1>
+{% if error %}
+  <p style="color:#b71c1c;">Failed to load prices: {{ error }}</p>
+{% endif %}
+{% if prices and prices|length > 0 %}
+  <p>Source: {{ source }} — Updated: {{ updated_human }}{% if next_update_human %} — Next refresh by: {{ next_update_human }}Z{% endif %}{% if refresh_seconds %} (every ~{{ refresh_seconds }}s){% endif %}</p>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th align="left">FIAT</th>
+        <th align="left">Price per 1 XMR</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fiat, price in prices.items() %}
+      <tr>
+        <td>{{ fiat }}</td>
+        <td>{{ '%.4f' % price }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:1rem;">Converter</h2>
+  <div style="display:grid;gap:8px;grid-template-columns:repeat(3, minmax(200px,1fr));align-items:end;max-width:900px;">
+    <label>XMR amount
+      <input type="number" id="xmr_in" step="0.0000000001" min="0" placeholder="e.g., 1.25">
+    </label>
+    <label>FIAT
+      <select id="fiat_sel">
+        {% for fiat, price in prices.items() %}
+          <option value="{{ fiat }}">{{ fiat }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div>
+      <button id="btn_xmr_to_fiat" type="button">Convert XMR → FIAT</button>
+    </div>
+    <div style="grid-column:1/4;">
+      <strong>Result:</strong> <span id="res_xmr_to_fiat">—</span>
+    </div>
+    <hr style="grid-column:1/4;">
+    <label>FIAT amount
+      <input type="number" id="fiat_in" step="0.01" min="0" placeholder="e.g., 250">
+    </label>
+    <label>FIAT
+      <select id="fiat_sel2">
+        {% for fiat, price in prices.items() %}
+          <option value="{{ fiat }}">{{ fiat }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div>
+      <button id="btn_fiat_to_xmr" type="button">Convert FIAT → XMR</button>
+    </div>
+    <div style="grid-column:1/4;">
+      <strong>Result:</strong> <span id="res_fiat_to_xmr">—</span>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const prices = {{ prices | tojson }}; // e.g., {"EUR": 150.23, "USD": 160.55}
+      function formatFiat(n){ return (Math.round(n * 100) / 100).toFixed(2); }
+      function formatXmr(n){ return (Math.round(n * 10000000000) / 10000000000).toFixed(10).replace(/0+$/,'').replace(/\.$/,''); }
+      document.getElementById('btn_xmr_to_fiat').addEventListener('click', function(){
+        const xmr = parseFloat(document.getElementById('xmr_in').value);
+        const fiat = document.getElementById('fiat_sel').value;
+        const p = prices[fiat];
+        if(isFinite(xmr) && xmr > 0 && isFinite(p) && p > 0){
+          const out = xmr * p;
+          document.getElementById('res_xmr_to_fiat').textContent = formatFiat(out) + ' ' + fiat;
+        } else {
+          document.getElementById('res_xmr_to_fiat').textContent = '—';
+        }
+      });
+      document.getElementById('btn_fiat_to_xmr').addEventListener('click', function(){
+        const fiatAmt = parseFloat(document.getElementById('fiat_in').value);
+        const fiat = document.getElementById('fiat_sel2').value;
+        const p = prices[fiat];
+        if(isFinite(fiatAmt) && fiatAmt > 0 && isFinite(p) && p > 0){
+          const out = fiatAmt / p;
+          document.getElementById('res_fiat_to_xmr').textContent = formatXmr(out) + ' XMR';
+        } else {
+          document.getElementById('res_fiat_to_xmr').textContent = '—';
+        }
+      });
+    })();
+  </script>
+{% else %}
+  <p style="color:#555;">No prices available at the moment. Please try again later.</p>
+{% endif %}
+{% endblock %}

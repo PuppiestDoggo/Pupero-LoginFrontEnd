@@ -144,6 +144,17 @@
   </form>
 
   <script>
+    // Injected from server: cached market prices per fiat (EUR, USD, ...)
+    const MARKET_PRICES = {{ (market_prices or {}) | tojson }};
+    function getMarketBase(fiat) {
+      if (!fiat) return undefined;
+      const key = String(fiat).toUpperCase();
+      const val = MARKET_PRICES ? MARKET_PRICES[key] : undefined;
+      const num = typeof val === 'number' ? val : parseFloat(val);
+      return isNaN(num) ? undefined : num;
+    }
+    function round2(n){ return Math.round(n * 100) / 100; }
+
     function updateResultPrice() {
       const mode = document.getElementById('price_mode').value;
       const fiatSel = document.getElementById('fiat_select');
@@ -154,12 +165,17 @@
       if (mode === 'market') {
         let m = parseFloat(marginInput && marginInput.value ? marginInput.value : '0');
         if (isNaN(m)) m = 0;
-        const price = Math.round(250 * (1 + m / 100) * 100) / 100;
-        text = price + ' ' + fiat;
+        const base = getMarketBase(fiat);
+        if (typeof base === 'number') {
+          const price = round2(base * (1 + m / 100));
+          text = price + ' ' + fiat;
+        } else {
+          text = '—';
+        }
       } else if (mode === 'fixed') {
         const fp = parseFloat(fixedInput && fixedInput.value ? fixedInput.value : '');
         if (!isNaN(fp)) {
-          const price = Math.round(fp * 100) / 100;
+          const price = round2(fp);
           text = price + ' ' + fiat;
         } else {
           text = '—';

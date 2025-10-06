@@ -9,6 +9,7 @@
         <a href="{{ url_for('home') }}">Home</a> |
         {% if request.cookies.get('access_token') %}
             <a href="{{ url_for('offers') }}">Offers</a> |
+            <a href="{{ url_for('rates') }}">Rates</a> |
             <a href="{{ url_for('buy') }}">Buy</a> |
             <a href="{{ url_for('sell') }}">Sell</a> |
             <a href="{{ url_for('create_ad') }}">Create Ad</a> |
@@ -24,6 +25,7 @@
             <a href="{{ url_for('register') }}">Register</a> |
             <a href="{{ url_for('login') }}">Login</a> |
             <a href="{{ url_for('password_reset') }}">Reset Password</a> |
+            <a href="{{ url_for('rates') }}">Rates</a> |
             <a href="{{ url_for('debug_isadmin_toggle') }}">Admin: {{ 'ON' if is_admin else 'OFF' }}</a>
         {% endif %}
     </nav>

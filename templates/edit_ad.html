@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Edit Ad{% endblock %}
+{% block content %}
+<h1>Edit Ad</h1>
+<p><strong>Ad ID:</strong> {{ offer.id }}</p>
+<form method="post" style="display:grid;gap:8px;grid-template-columns:repeat(2, minmax(240px, 1fr));">
+  <label style="grid-column:1/3">Title
+    <input type="text" name="title" value="{{ offer.title }}" maxlength="255">
+  </label>
+  <label>I'd like to
+    <select name="side">
+      <option value="buy" {% if ad.side=='buy' %}selected{% endif %}>Buy</option>
+      <option value="sell" {% if ad.side=='sell' %}selected{% endif %}>Sell</option>
+    </select>
+  </label>
+  <label>Cryptocurrency
+    <select name="crypto">
+      <option value="XMR" {% if ad.crypto=='XMR' %}selected{% endif %}>Monero (XMR)</option>
+    </select>
+  </label>
+  <label>Ad country
+    <input type="text" name="country" value="{{ ad.country }}" placeholder="e.g., FR">
+  </label>
+  <label>Local currency
+    <select name="fiat" id="fiat_select">
+      <option value="EUR" {% if ad.fiat=='EUR' %}selected{% endif %}>EUR</option>
+      <option value="USD" {% if ad.fiat=='USD' %}selected{% endif %}>USD</option>
+      <option value="RUB" {% if ad.fiat=='RUB' %}selected{% endif %}>RUB</option>
+    </select>
+  </label>
+  <label>Price setting
+    <select name="price_mode" id="price_mode">
+      <option value="market" {% if ad.price_mode=='market' %}selected{% endif %}>Market price</option>
+      <option value="equation" {% if ad.price_mode=='equation' %}selected{% endif %}>Pricing equation</option>
+      <option value="fixed" {% if ad.price_mode=='fixed' %}selected{% endif %}>Fixed price</option>
+    </select>
+  </label>
+  <label id="price_margin_group">Margin (%)
+    <input type="number" name="margin" step="0.1" value="{{ ad.margin }}">
+  </label>
+  <label id="price_fixed_group">Fixed price ({{ ad.fiat }} per 1 XMR)
+    <input type="number" name="fixed_price" step="0.01" value="{{ ad.fixed_price or '' }}">
+  </label>
+  <label id="price_equation_group">Pricing equation (placeholder)
+    <input type="text" name="pricing_equation" value="{{ ad.pricing_equation }}" placeholder="e.g., market_price * 1.10">
+  </label>
+
+  <div id="result_price" style="grid-column:1/3; margin-top:4px;">
+    <strong>Resulting price:</strong> <span id="result_price_value">—</span> per 1 XMR
+  </div>
+
+  <fieldset style="grid-column:1/3; border:1px solid #ccc; padding:8px;">
+    <legend>Schedule</legend>
+    <label><input type="radio" name="schedule_mode" value="24h" {% if ad.schedule and ad.schedule.mode=='24h' %}checked{% endif %}> 24 hours (always visible)</label>
+    <label style="margin-left:12px;"><input type="radio" name="schedule_mode" value="weekly" {% if ad.schedule and ad.schedule.mode=='weekly' %}checked{% endif %}> Keep weekly (unchanged)</label>
+  </fieldset>
+
+  <label style="grid-column:1/3">Payment method
+    <select name="payment_method">
+      {% set pm = ad.payment_method or (ad.payment_methods|first) %}
+      <option {% if pm=='Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+      <option {% if pm=='Revolut' %}selected{% endif %}>Revolut</option>
+      <option {% if pm=='Paysafecard' %}selected{% endif %}>Paysafecard</option>
+      <option {% if pm=='Crypto (BTC)' %}selected{% endif %}>Crypto (BTC)</option>
+      <option {% if pm=='Crypto (ETH)' %}selected{% endif %}>Crypto (ETH)</option>
+    </select>
+  </label>
+  <label style="grid-column:1/3">Promo text
+    <input type="text" name="promo_text" maxlength="255" value="{{ ad.promo_text }}">
+  </label>
+  <label>Min transaction limit
+    <input type="number" name="min_limit" step="0.0000000001" value="{{ ad.min_limit }}">
+  </label>
+  <label>Max transaction limit
+    <input type="number" name="max_limit" step="0.0000000001" value="{{ ad.max_limit }}">
+  </label>
+  <label>Escrow time (minutes)
+    <input type="number" name="escrow_minutes" value="{{ ad.escrow_minutes or 60 }}">
+  </label>
+  <div style="grid-column:1/3">
+    <label><input type="checkbox" name="req_phone" {% if ad.req_phone %}checked{% endif %}> Confirmed phone</label>
+    <label style="margin-left:12px;"><input type="checkbox" name="req_id" {% if ad.req_id %}checked{% endif %}> Confirmed ID</label>
+  </div>
+  <label style="grid-column:1/3">Trade conditions
+    <textarea name="trade_conditions" rows="4">{{ ad.trade_conditions }}</textarea>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="open" {% if offer.status=='open' %}selected{% endif %}>open</option>
+      <option value="disabled" {% if offer.status=='disabled' %}selected{% endif %}>disabled</option>
+      <option value="closed" {% if offer.status=='closed' %}selected{% endif %}>closed</option>
+    </select>
+  </label>
+  <div style="grid-column:1/3;margin-top:1rem;">
+    <button type="submit">Save changes</button>
+    <a href="{{ url_for('my_ads') }}" style="margin-left:12px;">Cancel</a>
+  </div>
+</form>
+
+<script>
+  // Injected from server: cached market prices per fiat (EUR, USD, ...)
+  const MARKET_PRICES = {{ (market_prices or {}) | tojson }};
+  function getMarketBase(fiat) {
+    if (!fiat) return undefined;
+    const key = String(fiat).toUpperCase();
+    const val = MARKET_PRICES ? MARKET_PRICES[key] : undefined;
+    const num = typeof val === 'number' ? val : parseFloat(val);
+    return isNaN(num) ? undefined : num;
+  }
+  function round2(n){ return Math.round(n * 100) / 100; }
+  function updateResultPrice() {
+    const mode = document.getElementById('price_mode').value;
+    const fiatSel = document.getElementById('fiat_select');
+    const fiat = fiatSel ? fiatSel.value : 'EUR';
+    const marginInput = document.querySelector('input[name="margin"]');
+    const fixedInput = document.querySelector('input[name="fixed_price"]');
+    let text = '—';
+    if (mode === 'market') {
+      let m = parseFloat(marginInput && marginInput.value ? marginInput.value : '0');
+      if (isNaN(m)) m = 0;
+      const base = getMarketBase(fiat);
+      if (typeof base === 'number') {
+        const price = round2(base * (1 + m / 100));
+        text = price + ' ' + fiat;
+      } else {
+        text = '—';
+      }
+    } else if (mode === 'fixed') {
+      const fp = parseFloat(fixedInput && fixedInput.value ? fixedInput.value : '');
+      if (!isNaN(fp)) {
+        const price = round2(fp);
+        text = price + ' ' + fiat;
+      } else {
+        text = '—';
+      }
+    } else if (mode === 'equation') {
+      text = 'Use pricing equation (placeholder)';
+    }
+    const span = document.getElementById('result_price_value');
+    if (span) span.textContent = text;
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('price_mode').addEventListener('change', updateResultPrice);
+    const marginInput = document.querySelector('input[name="margin"]');
+    const fixedInput = document.querySelector('input[name="fixed_price"]');
+    const fiatSel = document.getElementById('fiat_select');
+    if (marginInput) marginInput.addEventListener('input', updateResultPrice);
+    if (fixedInput) fixedInput.addEventListener('input', updateResultPrice);
+    if (fiatSel) fiatSel.addEventListener('change', updateResultPrice);
+    updateResultPrice();
+  });
+</script>
+{% endblock %}

@@ -10,7 +10,14 @@
       <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
       — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
     </div>
-    {% if my_name and o.seller_name and my_name == o.seller_name %}
+    {% set is_owner = (my_user_id and o.seller_id and my_user_id == o.seller_id) or (my_name and o.seller_name and my_name == o.seller_name) %}
+    {% if is_owner %}
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+      <a href="{{ url_for('edit_ad', offer_id=o.id) }}">Edit details</a>
+      <form method="post" action="{{ url_for('delete_ad', offer_id=o.id) }}" onsubmit="return confirm('Delete this ad?');" style="display:inline;">
+        <button type="submit" style="background:#b71c1c;color:#fff;">Delete</button>
+      </form>
+    </div>
     <form method="post" action="{{ url_for('update_ad', offer_id=o.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(4, minmax(160px,1fr));align-items:end;margin-top:8px;">
       <label>Title
         <input type="text" name="title" value="{{ o.title }}" maxlength="255">
@@ -26,7 +33,7 @@
         </select>
       </label>
       <div>
-        <button type="submit">Save</button>
+        <button type="submit">Quick Save</button>
       </div>
     </form>
     {% endif %}

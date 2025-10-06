@@ -123,6 +123,33 @@ def _parse_offer_desc(desc_str: str) -> dict:
     }
 
 
+# --- Cached market price fetcher (internal API) ---
+_PRICE_CACHE = {"ts": 0.0, "prices": {}}
+
+
+def _get_market_price(fiat: str = "EUR") -> float:
+    # Small local cache to avoid even internal calls too often
+    import time as _t
+    now = _t.time()
+    if now - float(_PRICE_CACHE.get("ts", 0.0)) < 120 and _PRICE_CACHE.get("prices"):
+        pass
+    else:
+        try:
+            r = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=5)
+            if r.status_code == 200:
+                data = r.json() or {}
+                prices = data.get("prices") or {}
+                if isinstance(prices, dict) and prices:
+                    _PRICE_CACHE["prices"] = {k.upper(): float(v) for k, v in prices.items() if v is not None}
+                    _PRICE_CACHE["ts"] = now
+        except Exception:
+            pass
+    try:
+        return float(_PRICE_CACHE.get("prices", {}).get((fiat or "EUR").upper(), 0.0))
+    except Exception:
+        return 0.0
+
+
 def _compute_price_per_xmr(ad: dict, market_base: float = 250.0) -> float:
     mode = (ad.get('price_mode') or 'market').lower()
     if mode == 'fixed' and ad.get('fixed_price'):
@@ -147,16 +174,17 @@ def _humanize_schedule(s: dict) -> str:
         days = s.get('days') or {}
         # Build compact string like: Mon, Tue: 08:00-18:00
         parts = []
-        for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:
+        for d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']:
             if d in days:
                 ranges = days[d]
                 if isinstance(ranges, list) and ranges:
-                    parts.append(f"{d} {ranges[0].get('start','00:00')}-{ranges[0].get('end','23:59')}")
+                    parts.append(f"{d} {ranges[0].get('start', '00:00')}-{ranges[0].get('end', '23:59')}")
         return ', '.join(parts) if parts else 'weekly (unspecified)'
     # Fallback for old schema {start,end}
     if 'start' in s and 'end' in s:
         return f"{s.get('start')} to {s.get('end')}"
     return 'unspecified'
+
 
 app = Flask(__name__)
 # Secret key handling: use env if provided, otherwise generate an ephemeral dev key
@@ -164,7 +192,8 @@ if SECRET_KEY:
     app.secret_key = SECRET_KEY
 else:
     app.secret_key = secrets.token_hex(32)
-    logging.getLogger("pupero_frontend").warning("SECRET_KEY not set; using ephemeral dev key (development only). Set SECRET_KEY in environment for production.")
+    logging.getLogger("pupero_frontend").warning(
+        "SECRET_KEY not set; using ephemeral dev key (development only). Set SECRET_KEY in environment for production.")
 
 # Session cookie hardening
 app.config.update(
@@ -180,10 +209,12 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
 
+
 # Basic request logging
 @app.before_request
 def _start_timer():
     request._start_time = time.time()
+
 
 @app.after_request
 def _log_request(response):
@@ -203,12 +234,14 @@ def _log_request(response):
         pass
     return response
 
+
 # Helper to get auth headers with token from cookie
 def get_auth_headers():
     token = request.cookies.get('access_token')
     if token:
         return {'Authorization': f'Bearer {token}'}
     return {}
+
 
 # Helper to fetch current user's TOTP status (True if enabled)
 # Kept lightweight; called only when a token cookie exists
@@ -225,6 +258,7 @@ def _fetch_totp_enabled() -> bool:
         pass
     return False
 
+
 # Inject totp_enabled into all templates when logged in
 @app.context_processor
 def inject_totp():
@@ -233,10 +267,12 @@ def inject_totp():
         enabled = _fetch_totp_enabled()
     return dict(totp_enabled=enabled)
 
+
 # Home
 @app.route('/')
 def home():
     return render_template('home.html')
+
 
 # Register
 @app.route('/register', methods=['GET', 'POST'])
@@ -262,6 +298,7 @@ def register():
                 detail = 'Registration failed'
             flash(detail, 'error')
     return render_template('register.html')
+
 
 # Login
 @app.route('/login', methods=['GET', 'POST'])
@@ -297,7 +334,7 @@ def login():
             # Decide cookie security flags from config; fallback to request.is_secure when not enforced
             secure_flag = SECURE_COOKIES or request.is_secure
             samesite = SESSION_COOKIE_SAMESITE
-            max_age = REMEMBER_ME_DAYS*24*60*60 if remember_flag else 60*60
+            max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
             resp.set_cookie(
                 'access_token',
                 tokens.get('access_token', ''),
@@ -315,7 +352,8 @@ def login():
                 max_age=max_age
             )
             try:
-                logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
+                logger.info(
+                    json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
             except Exception:
                 pass
             flash('Login successful!', 'success')
@@ -331,13 +369,14 @@ def login():
             flash(f'Login failed: {detail}', 'error')
     return render_template('login.html')
 
+
 # Profile
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     headers = get_auth_headers()
     if not headers:
         return redirect(url_for('login'))
-    
+
     if request.method == 'POST':
         action = request.form.get('action', 'update_phrase')
         payload = {}
@@ -364,7 +403,7 @@ def profile():
                     secure_flag = SECURE_COOKIES or request.is_secure
                     samesite = SESSION_COOKIE_SAMESITE
                     remember_cookie = request.cookies.get('remember') == '1'
-                    max_age = REMEMBER_ME_DAYS*24*60*60 if remember_cookie else 60*60
+                    max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_cookie else 60 * 60
                     resp.set_cookie(
                         'access_token',
                         data.get('access_token', ''),
@@ -374,7 +413,8 @@ def profile():
                         max_age=max_age
                     )
                     try:
-                        logger.info(json.dumps({"event": "token_refreshed_cookie_set", "remember": remember_cookie, "client": request.remote_addr}))
+                        logger.info(json.dumps({"event": "token_refreshed_cookie_set", "remember": remember_cookie,
+                                                "client": request.remote_addr}))
                     except Exception:
                         pass
                     flash(data.get('message', 'Profile updated!'), 'success')
@@ -388,7 +428,7 @@ def profile():
                 flash('Update failed: ' + str(detail), 'error')
         except Exception as e:
             flash(f'Update failed: {e}', 'error')
-    
+
     try:
         response = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=10)
     except Exception as e:
@@ -421,6 +461,7 @@ def profile():
         flash('Unauthorized', 'error')
         return redirect(url_for('login'))
 
+
 # Enable TOTP
 @app.route('/totp/enable', methods=['GET', 'POST'])
 def totp_enable():
@@ -451,6 +492,7 @@ def totp_enable():
                 detail = response.text
             flash('Failed to enable TOTP: ' + str(detail), 'error')
     return render_template('totp_enable.html')
+
 
 # Confirm TOTP Enable
 @app.route('/totp/enable/confirm', methods=['POST'])
@@ -486,6 +528,7 @@ def totp_enable_confirm():
             return render_template('totp_enable.html', secret=secret, qr_url=qr_url)
         return redirect(url_for('totp_enable'))
 
+
 # Disable TOTP
 @app.route('/totp/disable', methods=['POST'])
 def totp_disable():
@@ -510,6 +553,7 @@ def totp_disable():
         flash(f'Failed to disable TOTP: {e}', 'error')
     return redirect(url_for('profile'))
 
+
 # Password Reset Request
 @app.route('/password/reset', methods=['GET', 'POST'])
 def password_reset():
@@ -526,6 +570,7 @@ def password_reset():
             flash(f'Reset request failed: {e}', 'error')
         return redirect(url_for('login'))
     return render_template('reset.html')
+
 
 # Sessions management (UI stubs)
 @app.route('/sessions/close', methods=['POST'])
@@ -551,6 +596,7 @@ def close_session():
         flash(f'Requested close for session {ip} (stub)', 'info')
     return resp
 
+
 @app.route('/sessions/report', methods=['POST'])
 def report_session():
     ip = request.form.get('ip')
@@ -566,6 +612,7 @@ def report_session():
         pass
     flash(f'Reported session {ip} to admin (stub)', 'warning')
     return redirect(url_for('profile'))
+
 
 # Logout
 @app.route('/logout')
@@ -584,40 +631,47 @@ def logout():
     flash('Logged out', 'info')
     return resp
 
+
 # Debug/admin switch (frontend only)
 @app.route('/debug/isadmin/toggle')
 def debug_isadmin_toggle():
     current = (request.cookies.get('isadmin') or '').strip().lower()
     new = '0'
-    if current not in {'1','true','yes','on'}:
+    if current not in {'1', 'true', 'yes', 'on'}:
         new = '1'
     resp = make_response(redirect(request.referrer or url_for('home')))
     try:
-        resp.set_cookie('isadmin', new, max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+        resp.set_cookie('isadmin', new, max_age=60 * 60 * 24 * 30, samesite=SESSION_COOKIE_SAMESITE,
+                        secure=SECURE_COOKIES)
     except Exception:
         resp.set_cookie('isadmin', new)
-    flash(('Admin mode enabled' if new=='1' else 'Admin mode disabled'), 'info')
+    flash(('Admin mode enabled' if new == '1' else 'Admin mode disabled'), 'info')
     return resp
+
 
 @app.route('/debug/isadmin/on')
 def debug_isadmin_on():
     resp = make_response(redirect(request.referrer or url_for('home')))
     try:
-        resp.set_cookie('isadmin', '1', max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+        resp.set_cookie('isadmin', '1', max_age=60 * 60 * 24 * 30, samesite=SESSION_COOKIE_SAMESITE,
+                        secure=SECURE_COOKIES)
     except Exception:
         resp.set_cookie('isadmin', '1')
     flash('Admin mode enabled', 'info')
     return resp
 
+
 @app.route('/debug/isadmin/off')
 def debug_isadmin_off():
     resp = make_response(redirect(request.referrer or url_for('home')))
     try:
-        resp.set_cookie('isadmin', '0', max_age=60*60*24*30, samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+        resp.set_cookie('isadmin', '0', max_age=60 * 60 * 24 * 30, samesite=SESSION_COOKIE_SAMESITE,
+                        secure=SECURE_COOKIES)
     except Exception:
         resp.set_cookie('isadmin', '0')
     flash('Admin mode disabled', 'info')
     return resp
+
 
 # Offers integration
 @app.route('/offers', methods=['GET'])
@@ -669,10 +723,26 @@ def offer_detail(offer_id: str):
         seller_id, buyer_id, side = _resolve_roles_for_offer(offer, uid)
         is_user_buyer = (int(uid) == int(buyer_id))
         is_user_seller = (int(uid) == int(seller_id))
+        # Self-trade guard: if roles resolve to the same user, block trade init
+        self_trade_block = (int(seller_id or 0) == int(buyer_id or 0) and int(seller_id or 0) != 0)
     except Exception as e:
         flash(f'Failed to load offer: {e}', 'error')
         return redirect(url_for('offers'))
-    return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr, offer_side=side, is_user_buyer=is_user_buyer, is_user_seller=is_user_seller)
+    # Hide SELL offers from public when seller has no available XMR
+    try:
+        if (str(side).lower() == 'sell') and (not is_user_seller):
+            sid = int(seller_id or 0)
+            fb = _get_fake_balance(sid) if sid else None
+            if fb is not None and fb <= 0.0:
+                flash(
+                    'This offer is temporarily hidden because the seller has insufficient XMR. It will be back when they have enough XMR.',
+                    'info')
+                return redirect(url_for('buy'))
+    except Exception:
+        pass
+    return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr, offer_side=side,
+                           is_user_buyer=is_user_buyer, is_user_seller=is_user_seller,
+                           self_trade_block=self_trade_block)
 
 
 @app.route('/offers/<offer_id>/bid', methods=['POST'])
@@ -685,6 +755,7 @@ def offer_bid(offer_id: str):
     # Prefer new dual-inputs
     fiat_amount_raw = request.form.get('fiat_amount')
     xmr_amount_raw = request.form.get('xmr_amount')
+    viewer_id = _get_logged_in_user_id()
 
     def _to_float(val):
         try:
@@ -728,8 +799,22 @@ def offer_bid(offer_id: str):
         return redirect(url_for('offer_detail', offer_id=offer_id))
 
     # Call backend to create transaction
+    # Prevent self-trade bids at UI level as well
     try:
-        r = requests.post(f"{OFFERS_SERVICE_URL}/offers/{offer_id}/bid", json={'bid': xmr_amount}, timeout=10)
+        ro = requests.get(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", timeout=10)
+        if ro.status_code == 200:
+            off = ro.json() or {}
+            try:
+                if int(off.get('seller_id') or 0) == int(viewer_id or 0):
+                    flash("You cannot trade with yourself.", 'warning')
+                    return redirect(url_for('offer_detail', offer_id=offer_id))
+            except Exception:
+                pass
+    except Exception:
+        pass
+    try:
+        r = requests.post(f"{OFFERS_SERVICE_URL}/offers/{offer_id}/bid",
+                          json={'bid': xmr_amount, 'buyer_id': int(viewer_id or 0)}, timeout=10)
         if r.status_code == 200:
             tx_id = r.json().get('tx_id', '')
             flash(f'Trade started. Reference={tx_id}', 'success')
@@ -742,6 +827,35 @@ def offer_bid(offer_id: str):
     except Exception as e:
         flash(f'Trade failed: {e}', 'error')
     return redirect(url_for('offer_detail', offer_id=offer_id))
+
+
+# --- Cached balance lookup (to avoid excessive API calls) ---
+_BAL_CACHE: dict[int, dict] = {}
+
+
+def _get_fake_balance(user_id: int) -> float | None:
+    try:
+        uid = int(user_id)
+    except Exception:
+        return None
+    import time as _t
+    now = _t.time()
+    ent = _BAL_CACHE.get(uid)
+    if ent and now - float(ent.get('ts', 0.0)) < 60.0:
+        try:
+            return float(ent.get('fake'))
+        except Exception:
+            return ent.get('fake')
+    try:
+        r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}", timeout=6)
+        if r.status_code == 200:
+            data = r.json() or {}
+            fake = float(data.get('fake_xmr') or 0.0)
+            _BAL_CACHE[uid] = {'ts': now, 'fake': fake}
+            return fake
+    except Exception:
+        pass
+    return None
 
 
 # Bitpapa-like pages
@@ -766,13 +880,27 @@ def buy():
         resp = requests.get(f"{OFFERS_SERVICE_URL}/offers", params={'status': 'open'}, timeout=10)
         if resp.status_code == 200:
             raw = resp.json()
-            # Show only offers where counterparty is selling (user wants to buy)
+            viewer_id = _get_logged_in_user_id()
+            # Show only offers where counterparty is selling (user wants to buy),
+            # and hide SELL offers whose owner has no available XMR (fake_xmr <= 0)
             filtered = []
             for o in raw:
                 try:
                     ad = _parse_offer_desc(o.get('desc'))
-                    if (ad.get('side') or '').lower() == 'sell':
-                        filtered.append(o)
+                    if (ad.get('side') or '').lower() != 'sell':
+                        continue
+                    # Hide if seller has no available XMR, except show to the owner themself
+                    sid = 0
+                    try:
+                        sid = int(o.get('seller_id') or 0)
+                    except Exception:
+                        sid = 0
+                    if sid and viewer_id and sid != viewer_id:
+                        fb = _get_fake_balance(sid)
+                        if fb is not None and fb <= 0.0:
+                            # skip offers from sellers with no available XMR
+                            continue
+                    filtered.append(o)
                 except Exception:
                     continue
             offers = [_attach_seller_name(o) for o in filtered]
@@ -830,7 +958,7 @@ def create_ad():
             schedule = {'mode': '24h'}
         else:
             days_map = {}
-            for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']:
+            for d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']:
                 if request.form.get(f'day_{d}'):
                     t_start = (request.form.get(f'{d}_start') or '00:00')
                     t_end = (request.form.get(f'{d}_end') or '23:59')
@@ -873,7 +1001,7 @@ def create_ad():
                     pass
             pm_list = ad.get('payment_methods') or []
             pm_display = pm_list[0] if pm_list else 'Any'
-            title = f"{(ad.get('side') or '').capitalize()} {ad.get('crypto', 'XMR')} via {pm_display} ({ad.get('fiat','EUR')})"
+            title = f"{(ad.get('side') or '').capitalize()} {ad.get('crypto', 'XMR')} via {pm_display} ({ad.get('fiat', 'EUR')})"
             desc_payload = {
                 'side': ad.get('side'),
                 'crypto': ad.get('crypto'),
@@ -931,7 +1059,16 @@ def create_ad():
                 preview_price = 250.0
         return render_template('create_ad.html', preview=True, ad=ad, preview_price=preview_price)
     # GET, render blank form
-    return render_template('create_ad.html', preview=False)
+    # Fetch cached market prices for client-side preview (avoid CORS by server-side fetch)
+    market_prices = {}
+    try:
+        r = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=6)
+        if r.status_code == 200:
+            data = r.json() or {}
+            market_prices = data.get('prices') or {}
+    except Exception:
+        market_prices = {}
+    return render_template('create_ad.html', preview=False, market_prices=market_prices)
 
 
 @app.route('/ads/mine', methods=['GET'])
@@ -962,7 +1099,158 @@ def my_ads():
             offers = filtered
     except Exception as e:
         flash(f'Failed to load offers: {e}', 'error')
-    return render_template('my_ads.html', offers=offers, my_name=my_name)
+    # Inform the owner that SELL offers are hidden when balance is insufficient
+    try:
+        fb = _get_fake_balance(uid)
+        if fb is not None and fb <= 0.0:
+            flash(
+                'Your SELL offers are hidden because you have insufficient XMR. They will reappear when you have enough XMR.',
+                'info')
+    except Exception:
+        pass
+    return render_template('my_ads.html', offers=offers, my_name=my_name, my_user_id=uid)
+
+
+@app.route('/ads/<offer_id>/delete', methods=['POST'])
+def delete_ad(offer_id: str):
+    if not request.cookies.get('access_token'):
+        flash('Please log in to manage your ads.', 'warning')
+        return redirect(url_for('login'))
+    uid = _get_logged_in_user_id()
+    # Verify ownership
+    try:
+        r = requests.get(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", timeout=10)
+        if r.status_code != 200:
+            flash('Offer not found', 'error')
+            return redirect(url_for('my_ads'))
+        offer = r.json() or {}
+        owner_id = int(offer.get('seller_id') or 0)
+        if not uid or owner_id != uid:
+            flash('Not authorized to delete this ad.', 'error')
+            return redirect(url_for('my_ads'))
+    except Exception as e:
+        flash(f'Failed to load offer: {e}', 'error')
+        return redirect(url_for('my_ads'))
+    # Delete
+    try:
+        dr = requests.delete(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", timeout=10)
+        if dr.status_code in (200, 204):
+            flash('Ad deleted', 'success')
+        else:
+            try:
+                detail = dr.json().get('detail', dr.text)
+            except Exception:
+                detail = dr.text
+            flash(f'Delete failed: {detail}', 'error')
+    except Exception as e:
+        flash(f'Delete failed: {e}', 'error')
+    return redirect(url_for('my_ads'))
+
+
+@app.route('/ads/<offer_id>/edit', methods=['GET', 'POST'])
+def edit_ad(offer_id: str):
+    if not request.cookies.get('access_token'):
+        flash('Please log in to edit your ads.', 'warning')
+        return redirect(url_for('login'))
+    uid = _get_logged_in_user_id()
+    # Load existing offer
+    try:
+        r = requests.get(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", timeout=10)
+        if r.status_code != 200:
+            flash('Offer not found', 'error')
+            return redirect(url_for('my_ads'))
+        offer = r.json() or {}
+    except Exception as e:
+        flash(f'Failed to load offer: {e}', 'error')
+        return redirect(url_for('my_ads'))
+    owner_id = int(offer.get('seller_id') or 0)
+    if not uid or owner_id != uid:
+        flash('Not authorized to edit this ad.', 'error')
+        return redirect(url_for('my_ads'))
+    ad = _parse_offer_desc(offer.get('desc'))
+    if request.method == 'POST':
+        # Collect fields
+        payment_method = request.form.get('payment_method', ad.get('payment_method') or '')
+        price_mode = request.form.get('price_mode', ad.get('price_mode') or 'market')
+        # Build schedule (keep simple: 24h or keep existing)
+        schedule_mode = request.form.get('schedule_mode', ad.get('schedule', {}).get('mode', '24h'))
+        schedule = {'mode': '24h'} if schedule_mode == '24h' else ad.get('schedule') or {'mode': '24h'}
+        updated_ad = {
+            'side': request.form.get('side', ad.get('side') or 'buy'),
+            'crypto': request.form.get('crypto', ad.get('crypto') or 'XMR'),
+            'country': request.form.get('country', ad.get('country') or ''),
+            'fiat': request.form.get('fiat', ad.get('fiat') or 'EUR'),
+            'price_mode': price_mode,
+            'margin': request.form.get('margin', ad.get('margin') or '0'),
+            'fixed_price': request.form.get('fixed_price', ad.get('fixed_price') or ''),
+            'pricing_equation': request.form.get('pricing_equation', ad.get('pricing_equation') or ''),
+            'schedule': schedule,
+            'payment_method': payment_method,
+            'payment_methods': [payment_method] if payment_method else (ad.get('payment_methods') or []),
+            'promo_text': request.form.get('promo_text', ad.get('promo_text') or ''),
+            'min_limit': request.form.get('min_limit', ad.get('min_limit') or ''),
+            'max_limit': request.form.get('max_limit', ad.get('max_limit') or ''),
+            'escrow_minutes': request.form.get('escrow_minutes', ad.get('escrow_minutes') or '60'),
+            'req_phone': 'req_phone' in request.form if 'req_phone' in request.form else ad.get('req_phone', False),
+            'req_id': 'req_id' in request.form if 'req_id' in request.form else ad.get('req_id', False),
+            'trade_conditions': request.form.get('trade_conditions', ad.get('trade_conditions') or ''),
+        }
+        # Build desc payload as in create_ad
+        pm_list = updated_ad.get('payment_methods') or []
+        pm_display = pm_list[0] if pm_list else 'Any'
+        title = request.form.get('title') or offer.get(
+            'title') or f"{(updated_ad.get('side') or '').capitalize()} {updated_ad.get('crypto', 'XMR')} via {pm_display} ({updated_ad.get('fiat', 'EUR')})"
+        desc_payload = {
+            'side': updated_ad.get('side'),
+            'crypto': updated_ad.get('crypto'),
+            'country': updated_ad.get('country'),
+            'promo': updated_ad.get('promo_text'),
+            'fiat': updated_ad.get('fiat'),
+            'payment': updated_ad.get('payment_method') or (pm_list[0] if pm_list else ''),
+            'payment_methods': pm_list,
+            'limits': {'min': updated_ad.get('min_limit'), 'max': updated_ad.get('max_limit')},
+            'escrow_min': updated_ad.get('escrow_minutes'),
+            'requirements': {'phone': updated_ad.get('req_phone'), 'id': updated_ad.get('req_id')},
+            'conditions': updated_ad.get('trade_conditions'),
+            'price_mode': updated_ad.get('price_mode'),
+            'margin': updated_ad.get('margin'),
+            'fixed_price': updated_ad.get('fixed_price'),
+            'equation_enabled': bool(updated_ad.get('pricing_equation')),
+            'pricing_equation': updated_ad.get('pricing_equation'),
+            'schedule': updated_ad.get('schedule'),
+            'seller_name': _get_logged_in_username(),
+        }
+        status = request.form.get('status') or offer.get('status')
+        payload = {
+            'title': title,
+            'desc': json.dumps(desc_payload),
+            'price': 1.0,
+            'status': status,
+        }
+        try:
+            ur = requests.put(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", json=payload, timeout=10)
+            if ur.status_code == 200:
+                flash('Ad updated', 'success')
+                return redirect(url_for('my_ads'))
+            else:
+                try:
+                    detail = ur.json().get('detail', ur.text)
+                except Exception:
+                    detail = ur.text
+                flash(f'Update failed: {detail}', 'error')
+        except Exception as e:
+            flash(f'Update failed: {e}', 'error')
+    # GET mode: render edit form
+    # Fetch cached market prices for client-side preview
+    market_prices = {}
+    try:
+        rmp = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=6)
+        if rmp.status_code == 200:
+            data = rmp.json() or {}
+            market_prices = data.get('prices') or {}
+    except Exception:
+        market_prices = {}
+    return render_template('edit_ad.html', offer=offer, ad=ad, market_prices=market_prices)
 
 
 @app.route('/ads/<offer_id>/update', methods=['POST'])
@@ -1039,26 +1327,27 @@ def balances():
             flash(f'Failed to load balance: {detail}', 'error')
     except Exception as e:
         flash(f'Failed to load balance: {e}', 'error')
-    # Also fetch user's Monero subaddress via API Manager (monero service)
+    # Also fetch user's Monero subaddresses via API Manager (monero service)
+    subaddresses = []
     try:
         # OFFERS_SERVICE_URL points to API Manager base (e.g., http://api-manager:8000)
         r2 = requests.get(f"{OFFERS_SERVICE_URL}/monero/addresses", params={"user_id": user_id}, timeout=10)
         if r2.status_code == 200:
             addrs = r2.json() or []
             if isinstance(addrs, list) and addrs:
-                # Prefer the most recent active (not disabled) address
                 try:
-                    sorted_addrs = sorted(addrs, key=lambda a: a.get('created_at') or a.get('id') or 0, reverse=True)
+                    # Sort all by id desc (newest first)
+                    subaddresses = sorted(addrs, key=lambda a: int(a.get('id') or 0), reverse=True)
+                    # Prefer the newest non-disabled subaddress
+                    active = [a for a in subaddresses if not bool(a.get('is_disabled', False))]
+                    candidates = active if active else subaddresses
+                    # Sort by id desc (fallback if created_at not comparable across py/JSON)
+                    # candidates already sorted by id desc via subaddresses
+                    monero_address = (candidates[0].get('address') or None) if candidates else None
                 except Exception:
-                    sorted_addrs = addrs
-                chosen = None
-                for a in sorted_addrs:
-                    if not a.get('is_disabled'):
-                        chosen = a
-                        break
-                if not chosen:
-                    chosen = sorted_addrs[0]
-                monero_address = (chosen or {}).get('address') or None
+                    # Fallbacks
+                    monero_address = addrs[0].get('address') or None
+                    subaddresses = addrs
         else:
             # Non-fatal; just log to flash for visibility
             try:
@@ -1069,7 +1358,7 @@ def balances():
     except Exception as e:
         # Non-fatal
         flash(f'Could not load Monero address: {e}', 'warning')
-    return render_template('balances.html', balance=bal, monero_address=monero_address)
+    return render_template('balances.html', balance=bal, monero_address=monero_address, subaddresses=subaddresses)
 
 
 @app.route('/balances/increase', methods=['POST'])
@@ -1089,7 +1378,8 @@ def balances_increase():
         flash('Invalid amount', 'error')
         return redirect(url_for('balances'))
     try:
-        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/increase", json={"amount_xmr": amt, "kind": kind}, timeout=10)
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/increase",
+                          json={"amount_xmr": amt, "kind": kind}, timeout=10)
         if r.status_code == 200:
             flash('Balance increased', 'success')
         else:
@@ -1120,7 +1410,8 @@ def balances_decrease():
         flash('Invalid amount', 'error')
         return redirect(url_for('balances'))
     try:
-        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/decrease", json={"amount_xmr": amt, "kind": kind}, timeout=10)
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}/decrease",
+                          json={"amount_xmr": amt, "kind": kind}, timeout=10)
         if r.status_code == 200:
             flash('Balance decreased', 'success')
         else:
@@ -1155,7 +1446,8 @@ def balances_withdraw():
         return redirect(url_for('balances'))
     try:
         # API Manager expects /transactions prefix; TRANSACTIONS_SERVICE_URL already includes it
-        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/withdraw/{user_id}", json={"to_address": to_address, "amount_xmr": amt}, timeout=30)
+        r = requests.post(f"{TRANSACTIONS_SERVICE_URL}/withdraw/{user_id}",
+                          json={"to_address": to_address, "amount_xmr": amt}, timeout=30)
         if r.status_code == 200:
             try:
                 data = r.json()
@@ -1180,6 +1472,7 @@ TRADES: dict[str, dict] = {}
 ACTIVE_TRADE_ID_BY_USER: dict[int, str] = {}
 # Map username -> current active trade_id (fallback for legacy offers with unknown owner IDs)
 ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
+
 
 # --- Matrix chat helpers ---
 
@@ -1296,8 +1589,10 @@ def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, tr
         return None
     return None
 
+
 def _gen_trade_id() -> str:
     return secrets.token_urlsafe(8)
+
 
 def _get_active_trade_id_for_username(username: str) -> str | None:
     if not username:
@@ -1325,6 +1620,7 @@ def _get_active_trade_id_for_user(user_id: int) -> str | None:
         return None
     return tid
 
+
 # Inject active_trade_id into templates for navbar convenience
 @app.context_processor
 def inject_trade_shortcuts():
@@ -1333,7 +1629,7 @@ def inject_trade_shortcuts():
     try:
         # Admin mode comes from a simple cookie for debugging
         raw_admin = request.cookies.get('isadmin') or ''
-        is_admin = raw_admin.strip().lower() in {'1','true','yes','on'}
+        is_admin = raw_admin.strip().lower() in {'1', 'true', 'yes', 'on'}
     except Exception:
         is_admin = False
     try:
@@ -1355,8 +1651,8 @@ def inject_trade_shortcuts():
                         buyer_name = t.get('buyer_name')
                         seller_name = t.get('seller_name')
                         is_participant = (
-                            (uid and uid in (buyer_id, seller_id)) or
-                            (uname and uname in {buyer_name, seller_name})
+                                (uid and uid in (buyer_id, seller_id)) or
+                                (uname and uname in {buyer_name, seller_name})
                         )
                         if is_participant:
                             tid = t.get('id')
@@ -1376,6 +1672,7 @@ def inject_trade_shortcuts():
         tid = None
     return dict(active_trade_id=tid, is_admin=is_admin)
 
+
 # Quick access to current active trade for the logged-in user
 @app.route('/trade/current', methods=['GET'])
 def trade_current():
@@ -1391,6 +1688,7 @@ def trade_current():
         return redirect(url_for('trade_view', trade_id=tid))
     flash('No active trade found.', 'info')
     return redirect(url_for('offers'))
+
 
 # List all trades (in this process) involving the current user
 @app.route('/trades', methods=['GET'])
@@ -1492,6 +1790,13 @@ def trade_start(offer_id: str):
 
     # Determine roles
     seller_id, buyer_id, side = _resolve_roles_for_offer(offer, user_id)
+    # Prevent self-trade
+    try:
+        if int(seller_id or 0) == int(buyer_id or 0):
+            flash('You cannot open a trade with yourself.', 'warning')
+            return redirect(url_for('offer_detail', offer_id=offer_id))
+    except Exception:
+        pass
     # Derive participant usernames for fallback authorization/alerts
     offer_owner_name = ""
     try:
@@ -1710,14 +2015,13 @@ def trade_payment_received(trade_id: str):
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
 
-
-
 # --- Reverse proxy for Matrix Element to avoid localhost:8080 dependency ---
 ELEMENT_BACKEND_BASE = "http://pupero-matrix-element"
 
-@app.route('/element', defaults={'path': ''}, methods=['GET','HEAD'])
-@app.route('/element/', defaults={'path': ''}, methods=['GET','HEAD'])
-@app.route('/element/<path:path>', methods=['GET','HEAD'])
+
+@app.route('/element', defaults={'path': ''}, methods=['GET', 'HEAD'])
+@app.route('/element/', defaults={'path': ''}, methods=['GET', 'HEAD'])
+@app.route('/element/<path:path>', methods=['GET', 'HEAD'])
 def element_proxy(path: str):
     # Build upstream URL
     base = ELEMENT_BACKEND_BASE.rstrip('/')
@@ -1763,8 +2067,9 @@ def element_proxy(path: str):
     except Exception as e:
         return make_response(f"Element backend unavailable: {e}", 502)
 
+
 # Fallback proxies for common Element root-relative paths when embedded under /element
-@app.route('/config.json', methods=['GET','HEAD'])
+@app.route('/config.json', methods=['GET', 'HEAD'])
 def element_config_proxy():
     try:
         upstream = requests.request(request.method, f"{ELEMENT_BACKEND_BASE.rstrip('/')}/config.json", timeout=15)
@@ -1776,7 +2081,8 @@ def element_config_proxy():
     except Exception as e:
         return make_response(f"Element config unavailable: {e}", 502)
 
-@app.route('/bundles/<path:path>', methods=['GET','HEAD'])
+
+@app.route('/bundles/<path:path>', methods=['GET', 'HEAD'])
 def element_bundles_proxy(path: str):
     try:
         upstream = requests.request(request.method, f"{ELEMENT_BACKEND_BASE.rstrip('/')}/bundles/{path}", timeout=15)
@@ -1788,9 +2094,10 @@ def element_bundles_proxy(path: str):
     except Exception as e:
         return make_response(f"Element asset unavailable: {e}", 502)
 
-@app.route('/olm.wasm', methods=['GET','HEAD'])
-@app.route('/version', methods=['GET','HEAD'])
-@app.route('/favicon.ico', methods=['GET','HEAD'])
+
+@app.route('/olm.wasm', methods=['GET', 'HEAD'])
+@app.route('/version', methods=['GET', 'HEAD'])
+@app.route('/favicon.ico', methods=['GET', 'HEAD'])
 def element_misc_proxy():
     try:
         # Map the request path directly to Element backend root
@@ -1981,7 +2288,6 @@ def api_chat_send(trade_id: str):
     return _json_response({"event_id": eid}, 200)
 
 
-
 @app.route('/addresses/rotate', methods=['POST'])
 def rotate_address():
     if not request.cookies.get('access_token'):
@@ -1994,7 +2300,8 @@ def rotate_address():
     # Generate a friendly label
     try:
         label = f"user_{int(user_id)}_{int(time.time())}"
-        r = requests.post(f"{OFFERS_SERVICE_URL}/monero/addresses/rotate", json={"user_id": int(user_id), "label": label}, timeout=20)
+        r = requests.post(f"{OFFERS_SERVICE_URL}/monero/addresses/rotate",
+                          json={"user_id": int(user_id), "label": label}, timeout=20)
         if r.status_code == 200:
             data = {}
             try:
@@ -2012,3 +2319,80 @@ def rotate_address():
     except Exception as e:
         flash(f'Could not create new subaddress: {e}', 'error')
     return redirect(url_for('balances'))
+
+
+# Overriding compute function to use internal market price
+
+def _compute_price_per_xmr(ad: dict, market_base: float = 250.0) -> float:
+    """Compute price per XMR for an ad.
+    - fixed: return fixed_price
+    - market: fetch cached internal market price for selected fiat and apply margin
+    - equation: placeholder -> fall back to market style
+    Fallback to market_base if price unavailable.
+    """
+    try:
+        mode = (ad.get('price_mode') or 'market').lower()
+    except Exception:
+        mode = 'market'
+    if mode == 'fixed' and ad.get('fixed_price') is not None and str(ad.get('fixed_price')) != '':
+        try:
+            return float(ad.get('fixed_price'))
+        except Exception:
+            pass
+    # Market or unknown: use market price
+    fiat = (ad.get('fiat') or 'EUR').upper()
+    base = _get_market_price(fiat) or float(market_base)
+    try:
+        margin = float(ad.get('margin') or 0.0)
+    except Exception:
+        margin = 0.0
+    try:
+        return float(base) * (1.0 + float(margin) / 100.0)
+    except Exception:
+        return float(market_base)
+
+
+@app.route('/rates', methods=['GET'])
+def rates():
+    """Public page that shows cached XMR conversion rates and a simple converter."""
+    # Fetch cached prices from API Manager
+    prices = {}
+    updated_at = 0
+    next_update_at = 0
+    source = "unknown"
+    refresh_seconds = 0
+    err = None
+    try:
+        r = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=6)
+        if r.status_code == 200:
+            data = r.json() or {}
+            prices = data.get('prices') or {}
+            updated_at = int(data.get('updated_at') or 0)
+            next_update_at = int(data.get('next_update_at') or 0)
+            source = data.get('source') or 'unknown'
+            refresh_seconds = int(data.get('refresh_seconds') or 0)
+        else:
+            err = f"Price endpoint returned {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        err = str(e)
+
+    # Prepare human times
+    def _fmt(ts: int) -> str:
+        try:
+            if ts:
+                return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
+        except Exception:
+            pass
+        return ''
+
+    context = {
+        'prices': prices,
+        'updated_at': updated_at,
+        'updated_human': _fmt(updated_at),
+        'next_update_at': next_update_at,
+        'next_update_human': _fmt(next_update_at),
+        'source': source,
+        'refresh_seconds': refresh_seconds,
+        'error': err,
+    }
+    return render_template('rates.html', **context)

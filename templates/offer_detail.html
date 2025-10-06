@@ -30,6 +30,11 @@
   <tr><th align="left">Trade conditions</th><td>{{ ad.trade_conditions }}</td></tr>
 </table>
 
+{% if self_trade_block %}
+<h2>Start Trade</h2>
+<p style="color:#b00;">You cannot start a trade with yourself.</p>
+<p><a href="{{ url_for('offers') }}">Back to offers</a></p>
+{% else %}
 <h2>Start Trade — {% if side == 'sell' %}You will BUY XMR{% else %}You will SELL XMR{% endif %}</h2>
 <form method="post" action="{{ url_for('trade_start', offer_id=offer.id) }}" style="display:grid;gap:8px;max-width:640px;grid-template-columns:repeat(2, minmax(200px,1fr));align-items:end;">
   <div style="grid-column:1/3;">
@@ -80,4 +85,5 @@
     xmr.addEventListener('input', onXmr);
   })();
 </script>
+{% endif %}
 {% endblock %}
