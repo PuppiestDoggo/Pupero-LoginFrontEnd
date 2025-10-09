@@ -1477,6 +1477,23 @@ ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 # --- Matrix chat helpers ---
 
 def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
+    """Return Matrix localpart for a user.
+    Prefer the provided human username (sanitized) over the numeric id.
+    Fallback to prefix+id if username is missing or sanitizes to empty.
+    """
+    # If a username is provided, sanitize to a valid Matrix localpart
+    if username:
+        try:
+            raw = str(username).strip().lower()
+            # Matrix localpart allowed chars: a-z 0-9 . _ = -
+            allowed = set("abcdefghijklmnopqrstuvwxyz0123456789._=-")
+            local = ''.join(ch if ch in allowed else '_' for ch in raw)
+            local = local.strip('_')
+            if local:
+                return local
+        except Exception:
+            pass
+    # Fallback to legacy scheme using numeric id
     try:
         uid = int(user_id)
     except Exception:
@@ -1564,17 +1581,21 @@ def _matrix_create_trade_room(creator_token: str, invite_mxid: str, trade_id: st
     return None, None
 
 
-def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, trade_id: str) -> dict | None:
+def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, trade_id: str, seller_name: str | None = None, buyer_name: str | None = None, initiator_name: str | None = None) -> dict | None:
     if not MATRIX_ENABLED:
         return None
     try:
-        s_local = _mx_username_for_user(seller_id)
-        b_local = _mx_username_for_user(buyer_id)
+        s_local = _mx_username_for_user(seller_id, seller_name)
+        b_local = _mx_username_for_user(buyer_id, buyer_name)
         s_pw = _mx_password_for_user(seller_id)
         b_pw = _mx_password_for_user(buyer_id)
         _matrix_register_if_needed(s_local, s_pw)
         _matrix_register_if_needed(b_local, b_pw)
-        creator_local = _mx_username_for_user(initiator_id)
+        # Prefer initiator's provided username; otherwise fall back to counterpart's name for localpart derivation
+        inferred_initiator_name = initiator_name
+        if not inferred_initiator_name:
+            inferred_initiator_name = buyer_name if initiator_id == buyer_id else seller_name
+        creator_local = _mx_username_for_user(initiator_id, inferred_initiator_name)
         other_mxid = _mx_mxid(b_local if initiator_id == seller_id else s_local)
         tok = _matrix_login(creator_local, _mx_password_for_user(initiator_id))
         room_id, alias = _matrix_create_trade_room(tok, other_mxid, trade_id)
@@ -1870,7 +1891,7 @@ def trade_start(offer_id: str):
         ACTIVE_TRADE_ID_BY_USERNAME[buyer_name] = trade_id
     # Setup Matrix chat room for this trade (best-effort)
     try:
-        mx = _matrix_setup_for_trade(seller_id, buyer_id, user_id, trade_id)
+        mx = _matrix_setup_for_trade(seller_id, buyer_id, user_id, trade_id, seller_name=seller_name, buyer_name=buyer_name, initiator_name=current_name)
         if mx:
             TRADES[trade_id]['matrix'] = mx
         else:
@@ -2148,7 +2169,12 @@ def _matrix_get_token_for_user(user_id: int) -> str | None:
     tok = MATRIX_TOKENS.get(uid)
     if tok:
         return tok
-    local = _mx_username_for_user(uid)
+    # Prefer the current logged-in username when deriving Matrix localpart
+    try:
+        current_uname = _get_logged_in_username()
+    except Exception:
+        current_uname = None
+    local = _mx_username_for_user(uid, current_uname)
     pw = _mx_password_for_user(uid)
     try:
         _matrix_register_if_needed(local, pw)
