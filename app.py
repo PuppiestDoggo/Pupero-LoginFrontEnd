@@ -273,6 +273,9 @@ def inject_totp():
 def home():
     return render_template('home.html')
 
+@app.route("/health")
+def health():
+    return "OK", 200
 
 # Register
 @app.route('/register', methods=['GET', 'POST'])
