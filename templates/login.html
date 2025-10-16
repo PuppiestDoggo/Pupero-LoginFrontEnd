@@ -1,12 +1,44 @@
 {% extends 'base.html' %}
 {% block title %}Login{% endblock %}
 {% block content %}
-    <h1>Login</h1>
-    <form method="post">
-        <label>Username or Email: <input type="text" name="identifier" required></label><br>
-        <label>Password: <input type="password" name="password" required></label><br>
-        <label>TOTP (if enabled): <input type="text" name="totp"></label><br>
-        <label><input type="checkbox" name="remember_me" value="yes"> Remember me</label><br>
-        <input type="submit" value="Login">
-    </form>
+    <div class="login-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; max-width: 900px; margin: 0 auto;">
+        <div style="text-align:center;">
+            <img src="{{ url_for('static', filename='login_logo.png') }}" alt="Logo" style="max-width:100%; height:auto; object-fit:contain;" onerror="this.style.display='none'">
+        </div>
+        <div>
+            <h1 style="margin-top:0;">Login</h1>
+            <form method="post">
+                <div style="margin:8px 0;">
+                    <label>Username or Email:<br>
+                        <input type="text" name="identifier" required style="width:100%; padding:8px;">
+                    </label>
+                </div>
+                <div style="margin:8px 0;">
+                    <label>Password:<br>
+                        <input type="password" name="password" required style="width:100%; padding:8px;">
+                    </label>
+                </div>
+                <div style="margin:8px 0;">
+                    <label>TOTP (if enabled):<br>
+                        <input type="text" name="totp" style="width:100%; padding:8px;" placeholder="123456">
+                    </label>
+                </div>
+                <div style="margin:8px 0;">
+                    <label><input type="checkbox" name="remember_me" value="yes"> Remember me</label>
+                </div>
+                <div style="margin:12px 0;">
+                    <input type="submit" value="Login" style="padding:10px 16px;">
+                </div>
+            </form>
+        </div>
+    </div>
+    <div style="display:none;" id="login-responsive-style"></div>
+    <script>
+      // Minimal responsive behavior: stack on narrow screens
+      (function(){
+        var style = document.getElementById('login-responsive-style');
+        if (!style) return;
+        style.innerHTML = '@media (max-width: 700px){ .login-grid{ grid-template-columns: 1fr !important; } }';
+      })();
+    </script>
 {% endblock %}
