@@ -306,71 +306,151 @@ def register():
 # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+    Multi-step login on the same page without redirects.
+    Steps:
+      1) Ask identifier (username/email)
+      2) Ask password
+      3) Ask TOTP if backend requires it
+    """
+    stage = 'identifier'
+    identifier = ''
+    remember_flag = False
+
     if request.method == 'POST':
-        # Backend accepts username or email in JSON
-        identifier = request.form.get('identifier', '').strip()
-        payload = {
-            'password': request.form.get('password', '')
-        }
-        # Decide whether it's an email or username (simple check for '@')
-        if '@' in identifier:
-            payload['email'] = identifier
-        else:
-            payload['username'] = identifier
-        totp = request.form.get('totp')
-        if totp:
-            payload['totp'] = totp
+        stage = request.form.get('stage', 'identifier')
         remember_flag = request.form.get('remember_me') == 'yes'
-        payload['remember_me'] = remember_flag
-        try:
-            response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=10)
-        except Exception as e:
-            flash(f'Login failed: {e}', 'error')
-            return render_template('login.html')
-        if response.status_code == 200:
+
+        # Normalize identifier across stages
+        identifier = request.form.get('identifier', '').strip()
+
+        # Stage 1 -> move to password stage (no backend call yet)
+        if stage == 'identifier':
+            if not identifier:
+                flash('Please enter your username or email.', 'error')
+                stage = 'identifier'
+            else:
+                stage = 'password'
+            return render_template('login.html', stage=stage, identifier=identifier, remember_me=remember_flag)
+
+        # Stage 2: submit password, try to login; backend may require TOTP
+        if stage == 'password':
+            password = request.form.get('password', '')
+            if not identifier:
+                flash('Missing identifier. Please start again.', 'error')
+                stage = 'identifier'
+                return render_template('login.html', stage=stage)
+            if not password:
+                flash('Please enter your password.', 'error')
+                return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
+
+            payload = {'password': password, 'remember_me': remember_flag}
+            if '@' in identifier:
+                payload['email'] = identifier
+            else:
+                payload['username'] = identifier
             try:
-                tokens = response.json()
-            except Exception:
-                flash('Login failed: Invalid response from server', 'error')
-                return render_template('login.html')
-            resp = make_response(redirect(url_for('profile')))
-            # Decide cookie security flags from config; fallback to request.is_secure when not enforced
-            secure_flag = SECURE_COOKIES or request.is_secure
-            samesite = SESSION_COOKIE_SAMESITE
-            max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
-            resp.set_cookie(
-                'access_token',
-                tokens.get('access_token', ''),
-                httponly=True,
-                secure=secure_flag,
-                samesite=samesite,
-                max_age=max_age
-            )
-            # Persist remember flag to reuse on token refreshes/updates
-            resp.set_cookie(
-                'remember',
-                '1' if remember_flag else '0',
-                secure=secure_flag,
-                samesite=samesite,
-                max_age=max_age
-            )
-            try:
-                logger.info(
-                    json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
-            except Exception:
-                pass
-            flash('Login successful!', 'success')
-            return resp
-        else:
-            # Safely extract error details
-            detail = None
+                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=10)
+            except Exception as e:
+                flash(f'Login failed: {e}', 'error')
+                return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
+
+            # Success straight away (no TOTP required)
+            if response.status_code == 200:
+                try:
+                    tokens = response.json()
+                except Exception:
+                    flash('Login failed: Invalid response from server', 'error')
+                    return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
+                # Set cookies but stay on the same page
+                resp = make_response(render_template('login.html', stage='success'))
+                secure_flag = SECURE_COOKIES or request.is_secure
+                samesite = SESSION_COOKIE_SAMESITE
+                max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
+                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age)
+                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age)
+                try:
+                    logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
+                except Exception:
+                    pass
+                flash('Login successful!', 'success')
+                return resp
+
+            # Check if TOTP is required by examining response
+            totp_required = False
+            detail = ''
+            body = None
             try:
                 body = response.json()
-                detail = body.get('detail') or body
+                detail = body.get('detail') or ''
+                totp_required = bool(body.get('totp_required'))
             except Exception:
-                detail = response.text
-            flash(f'Login failed: {detail}', 'error')
-    return render_template('login.html')
+                detail = response.text or ''
+
+            if response.status_code in (400, 401) and (totp_required or 'TOTP' in str(detail).upper() or '2FA' in str(detail).upper()):
+                # Move to TOTP step, keep password in a hidden field
+                stage = 'totp'
+                return render_template('login.html', stage=stage, identifier=identifier, password_cached=password, remember_me=remember_flag)
+
+            # Other errors: remain on password stage
+            if detail:
+                flash(f'Login failed: {detail}', 'error')
+            else:
+                flash('Login failed. Please try again.', 'error')
+            return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
+
+        # Stage 3: TOTP verification (submit identifier + password (hidden) + totp)
+        if stage == 'totp':
+            totp_code = request.form.get('totp', '').strip()
+            password = request.form.get('password_cached', '') or request.form.get('password', '')
+            if not identifier or not password:
+                flash('Session expired. Please start again.', 'error')
+                return render_template('login.html', stage='identifier')
+            if not totp_code:
+                flash('Please enter your 2FA code.', 'error')
+                return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
+
+            payload = {'remember_me': remember_flag, 'totp': totp_code, 'password': password}
+            if '@' in identifier:
+                payload['email'] = identifier
+            else:
+                payload['username'] = identifier
+            try:
+                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=10)
+            except Exception as e:
+                flash(f'Login failed: {e}', 'error')
+                return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
+
+            if response.status_code == 200:
+                try:
+                    tokens = response.json()
+                except Exception:
+                    flash('Login failed: Invalid response from server', 'error')
+                    return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
+                resp = make_response(render_template('login.html', stage='success'))
+                secure_flag = SECURE_COOKIES or request.is_secure
+                samesite = SESSION_COOKIE_SAMESITE
+                max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
+                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age)
+                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age)
+                try:
+                    logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
+                except Exception:
+                    pass
+                flash('Login successful!', 'success')
+                return resp
+            else:
+                # Failure: remain on TOTP stage
+                try:
+                    detail = response.json().get('detail', response.text)
+                except Exception:
+                    detail = response.text or 'Login failed'
+                flash(f'Login failed: {detail}', 'error')
+                return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
+
+    # GET request or fall-through
+    remember_flag = request.cookies.get('remember') == '1'
+    return render_template('login.html', stage=stage, identifier=identifier, remember_me=remember_flag)
 
 
 # Profile

@@ -1,35 +1,82 @@
 {% extends 'base.html' %}
 {% block title %}Login{% endblock %}
 {% block content %}
+    {% set current_stage = stage or 'identifier' %}
     <div class="login-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; max-width: 900px; margin: 0 auto;">
         <div style="text-align:center;">
             <img src="{{ url_for('static', filename='login_logo.png') }}" alt="Logo" style="max-width:100%; height:auto; object-fit:contain;" onerror="this.style.display='none'">
         </div>
         <div>
             <h1 style="margin-top:0;">Login</h1>
-            <form method="post">
+
+            {% if current_stage == 'identifier' %}
+            <form method="post" aria-label="Enter username or email">
+                <input type="hidden" name="stage" value="identifier">
                 <div style="margin:8px 0;">
                     <label>Username or Email:<br>
-                        <input type="text" name="identifier" required style="width:100%; padding:8px;">
+                        <input type="text" name="identifier" value="{{ identifier or '' }}" required style="width:100%; padding:8px;" autocomplete="username">
                     </label>
+                </div>
+                <div style="margin:8px 0;">
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
+                </div>
+                <div style="margin:12px 0;">
+                    <button type="submit" style="padding:10px 16px;">Continue</button>
+                </div>
+            </form>
+            {% elif current_stage == 'password' %}
+            <form method="post" aria-label="Enter password">
+                <input type="hidden" name="stage" value="password">
+                <input type="hidden" name="identifier" value="{{ identifier }}">
+                <div style="margin:8px 0;">
+                    <div style="font-size:14px;color:#555;">Signing in as <strong>{{ identifier }}</strong></div>
                 </div>
                 <div style="margin:8px 0;">
                     <label>Password:<br>
-                        <input type="password" name="password" required style="width:100%; padding:8px;">
+                        <input type="password" name="password" required style="width:100%; padding:8px;" autocomplete="current-password">
                     </label>
                 </div>
                 <div style="margin:8px 0;">
-                    <label>TOTP (if enabled):<br>
-                        <input type="text" name="totp" style="width:100%; padding:8px;" placeholder="123456">
-                    </label>
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
                 </div>
-                <div style="margin:8px 0;">
-                    <label><input type="checkbox" name="remember_me" value="yes"> Remember me</label>
-                </div>
-                <div style="margin:12px 0;">
-                    <input type="submit" value="Login" style="padding:10px 16px;">
+                <div style="display:flex; gap:10px; margin:12px 0;">
+                    <button type="submit" style="padding:10px 16px;">Continue</button>
+                    <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" style="padding:10px 16px; background:#eee; border:1px solid #ccc;">Back</button>
                 </div>
             </form>
+            {% elif current_stage == 'totp' %}
+            <form method="post" aria-label="Enter 2FA code">
+                <input type="hidden" name="stage" value="totp">
+                <input type="hidden" name="identifier" value="{{ identifier }}">
+                <input type="hidden" name="password_cached" value="{{ password_cached }}">
+                <div style="margin:8px 0;">
+                    <div style="font-size:14px;color:#555;">2FA required for <strong>{{ identifier }}</strong></div>
+                </div>
+                <div style="margin:8px 0;">
+                    <label>Authenticator code:<br>
+                        <input type="text" name="totp" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="123456" required style="width:100%; padding:8px;">
+                    </label>
+                </div>
+                <div style="margin:8px 0;">
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
+                </div>
+                <div style="display:flex; gap:10px; margin:12px 0;">
+                    <button type="submit" style="padding:10px 16px;">Verify & Sign in</button>
+                    <button type="submit" name="stage" value="password" formaction="{{ url_for('login') }}" style="padding:10px 16px; background:#eee; border:1px solid #ccc;">Back</button>
+                </div>
+            </form>
+            {% elif current_stage == 'success' %}
+            <div style="padding:12px; border:1px solid #d1fae5; background:#ecfdf5; color:#065f46; border-radius:6px;">
+                <strong>You're signed in.</strong>
+                <div style="margin-top:6px;">You can now proceed:</div>
+                <div style="margin-top:10px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <a href="{{ url_for('profile') }}" style="padding:8px 12px; background:#10b981; color:#fff; border-radius:4px; text-decoration:none;">Go to Profile</a>
+                    <a href="{{ url_for('offers') }}" style="padding:8px 12px; background:#3b82f6; color:#fff; border-radius:4px; text-decoration:none;">Browse Offers</a>
+                    <a href="{{ url_for('home') }}" style="padding:8px 12px; background:#6b7280; color:#fff; border-radius:4px; text-decoration:none;">Home</a>
+                </div>
+                <div style="margin-top:8px; font-size:12px; color:#374151;">Note: navigation bar will reflect your session on the next page you open.</div>
+            </div>
+            {% endif %}
         </div>
     </div>
     <div style="display:none;" id="login-responsive-style"></div>

@@ -52,8 +52,13 @@
 {% if balance %}
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><th align="left">User ID</th><td>{{ balance.user_id }}</td></tr>
-  <tr><th align="left">Fake XMR (in DB)</th><td>{{ ('%.10f' % balance.fake_xmr).rstrip('0').rstrip('.') }}</td></tr>
-  <tr><th align="left">Real XMR (external)</th><td>{{ ('%.10f' % balance.real_xmr).rstrip('0').rstrip('.') }}</td></tr>
+  {% if is_admin %}
+    <tr><th align="left">Fake XMR (in DB)</th><td>{{ ('%.10f' % balance.fake_xmr).rstrip('0').rstrip('.') }}</td></tr>
+    <tr><th align="left">Real XMR (external)</th><td>{{ ('%.10f' % balance.real_xmr).rstrip('0').rstrip('.') }}</td></tr>
+  {% else %}
+    {% set total_xmr = (balance.fake_xmr or 0) + (balance.real_xmr or 0) %}
+    <tr><th align="left">Balance (XMR)</th><td>{{ ('%.10f' % total_xmr).rstrip('0').rstrip('.') }}</td></tr>
+  {% endif %}
   <tr><th align="left">Updated</th><td>{{ balance.updated_at }}</td></tr>
 </table>
 {% else %}
