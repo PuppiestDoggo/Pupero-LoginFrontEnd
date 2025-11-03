@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, make_response, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, make_response, flash, Response, g
 import requests
 from config import (
     BACKEND_URL,
@@ -19,7 +19,9 @@ import logging
 import json
 import time
 import secrets
+import base64
 from urllib.parse import urlencode
+import os
 
 # Short-lived cache for user profile by access token (improves reliability for AJAX calls)
 # { token: {"id": int, "username": str, "ts": epoch_seconds} }
@@ -237,15 +239,77 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
 
+# --- Auth token refresh helper ---
+
+def _jwt_exp(token: str) -> float | None:
+    try:
+        parts = token.split('.')
+        if len(parts) < 2:
+            return None
+        pad = '=' * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad).decode('utf-8'))
+        return float(payload.get('exp')) if payload.get('exp') is not None else None
+    except Exception:
+        return None
+
+
+def _maybe_refresh_access_token(force: bool = False) -> None:
+    """Attempt to refresh the access token using refresh_token cookie via API Manager /auth/refresh.
+    On success, stores new tokens in flask.g so @after_request can persist them as cookies.
+    """
+    try:
+        current = getattr(g, 'current_access_token', None) or request.cookies.get('access_token')
+        # If we already have an access token and not forced, refresh only when expiring soon (<2 minutes)
+        if current and not force:
+            exp = _jwt_exp(current)
+            if exp and (exp - time.time()) > 120:
+                g.current_access_token = current
+                return
+        refresh_tok = request.cookies.get('refresh_token')
+        if not refresh_tok:
+            return
+        r = requests.post(f"{BACKEND_URL}/refresh", json={"refresh_token": refresh_tok}, timeout=6)
+        if r.status_code == 200:
+            data = r.json() or {}
+            at = data.get('access_token')
+            rt = data.get('refresh_token')
+            if at:
+                g.current_access_token = at
+                g.new_access_token = at
+            if rt:
+                g.new_refresh_token = rt
+    except Exception:
+        # Silent on purpose to keep UX smooth
+        return
+
 
 # Basic request logging
 @app.before_request
 def _start_timer():
     request._start_time = time.time()
+    # Attempt proactive refresh if access token is missing but a refresh token exists and user chose remember me
+    try:
+        if not request.cookies.get('access_token') and request.cookies.get('refresh_token'):
+            _maybe_refresh_access_token(force=True)
+    except Exception:
+        pass
 
 
 @app.after_request
 def _log_request(response):
+    try:
+        # If a new token was obtained during this request, set cookies on the response
+        secure_flag = SECURE_COOKIES or request.is_secure
+        samesite = SESSION_COOKIE_SAMESITE
+        remember = (request.cookies.get('remember') == '1')
+        max_age_access = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember else 60 * 60
+        max_age_refresh = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember else (12 * 60 * 60)
+        if getattr(g, 'new_access_token', None):
+            response.set_cookie('access_token', g.new_access_token or '', httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
+        if getattr(g, 'new_refresh_token', None):
+            response.set_cookie('refresh_token', g.new_refresh_token or '', httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_refresh)
+    except Exception:
+        pass
     try:
         duration = int((time.time() - getattr(request, "_start_time", time.time())) * 1000)
         log = {
@@ -265,7 +329,20 @@ def _log_request(response):
 
 # Helper to get auth headers with token from cookie
 def get_auth_headers():
-    token = request.cookies.get('access_token')
+    # Try to ensure we have a fresh-enough access token
+    try:
+        _maybe_refresh_access_token(force=False)
+    except Exception:
+        pass
+    # Prefer a freshly refreshed token stored in g during this request
+    token = getattr(g, 'current_access_token', None) or request.cookies.get('access_token')
+    # If still no token but we have a refresh cookie, force refresh
+    if not token and request.cookies.get('refresh_token'):
+        try:
+            _maybe_refresh_access_token(force=True)
+            token = getattr(g, 'current_access_token', None)
+        except Exception:
+            token = None
     if token:
         return {'Authorization': f'Bearer {token}'}
     return {}
@@ -394,9 +471,16 @@ def login():
                 resp = make_response(render_template('login.html', stage='success'))
                 secure_flag = SECURE_COOKIES or request.is_secure
                 samesite = SESSION_COOKIE_SAMESITE
-                max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
-                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age)
-                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age)
+                max_age_access = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
+                max_age_refresh = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else (12 * 60 * 60)
+                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
+                if tokens.get('refresh_token'):
+                    resp.set_cookie('refresh_token', tokens.get('refresh_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_refresh)
+                # Optional Matrix token cookie
+                mtx = tokens.get('matrix_access_token') if isinstance(tokens, dict) else None
+                if mtx:
+                    resp.set_cookie('matrix_access_token', mtx, httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
+                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age_access)
                 try:
                     logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
                 except Exception:
@@ -458,9 +542,16 @@ def login():
                 resp = make_response(render_template('login.html', stage='success'))
                 secure_flag = SECURE_COOKIES or request.is_secure
                 samesite = SESSION_COOKIE_SAMESITE
-                max_age = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
-                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age)
-                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age)
+                max_age_access = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
+                max_age_refresh = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else (12 * 60 * 60)
+                resp.set_cookie('access_token', tokens.get('access_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
+                if tokens.get('refresh_token'):
+                    resp.set_cookie('refresh_token', tokens.get('refresh_token', ''), httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_refresh)
+                # Optional Matrix token cookie
+                mtx = tokens.get('matrix_access_token') if isinstance(tokens, dict) else None
+                if mtx:
+                    resp.set_cookie('matrix_access_token', mtx, httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
+                resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age_access)
                 try:
                     logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
                 except Exception:
@@ -701,6 +792,7 @@ def close_session():
     resp = make_response(redirect(url_for('profile')))
     if is_current:
         resp.delete_cookie('access_token')
+        resp.delete_cookie('refresh_token')
         resp.delete_cookie('remember')
         flash(f'Closed current session ({ip})', 'info')
     else:
@@ -730,7 +822,9 @@ def report_session():
 def logout():
     resp = make_response(redirect(url_for('home')))
     resp.delete_cookie('access_token')
+    resp.delete_cookie('refresh_token')
     resp.delete_cookie('remember')
+    resp.delete_cookie('matrix_access_token')
     try:
         logger.info(json.dumps({
             "event": "logout",
@@ -741,6 +835,159 @@ def logout():
         pass
     flash('Logged out', 'info')
     return resp
+
+
+# --- Admin UI ---
+
+def _is_admin_user(headers: dict) -> bool:
+    try:
+        r = requests.get(f"{BACKEND_URL}/user/profile", headers=headers, timeout=6)
+        if r.status_code == 200:
+            role = (r.json() or {}).get('role') or ''
+            return str(role).lower() in {'admin','superadmin'}
+    except Exception:
+        pass
+    return False
+
+@app.route('/admin', methods=['GET','POST'])
+def admin_page():
+    headers = get_auth_headers()
+    if not headers:
+        flash('Please log in as an administrator.', 'warning')
+        return redirect(url_for('login'))
+    # Determine real admin vs demo admin (cookie-based)
+    real_admin = _is_admin_user(headers)
+    demo_admin = False
+    try:
+        demo_admin = (request.cookies.get('isadmin') or '').strip().lower() in {'1','true','yes','on'}
+    except Exception:
+        demo_admin = False
+    if not real_admin and not demo_admin:
+        flash('Administrator privileges required.', 'error')
+        return redirect(url_for('home'))
+
+    # Handle actions (only allowed for real admins)
+    if request.method == 'POST' and not real_admin:
+        flash('Demo mode: actions are disabled. Toggle is for viewing only.', 'warning')
+        return redirect(url_for('admin_page'))
+
+    # Handle actions
+    if request.method == 'POST':
+        action = request.form.get('action')
+        user_id = request.form.get('user_id')
+        try:
+            uid = int(user_id)
+        except Exception:
+            uid = 0
+        try:
+            if action in {'disable','enable'} and uid:
+                disabled = (action == 'disable')
+                r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/disable", json={"disabled": disabled}, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    flash(('User disabled' if disabled else 'User enabled'), 'success')
+                else:
+                    flash(r.text or 'Operation failed', 'error')
+            elif action == 'set_role' and uid:
+                role = (request.form.get('role') or '').strip().lower()
+                r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/role", json={"role": role}, headers=headers, timeout=10)
+                flash('Role updated' if r.status_code == 200 else (r.text or 'Role update failed'), 'info' if r.status_code == 200 else 'error')
+            elif action == 'reset_password' and uid:
+                new_password = request.form.get('new_password')
+                r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/password", json={"new_password": new_password}, headers=headers, timeout=10)
+                flash('Password reset' if r.status_code == 200 else (r.text or 'Password reset failed'), 'info' if r.status_code == 200 else 'error')
+            elif action == 'logout' and uid:
+                r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/logout", headers=headers, timeout=10)
+                flash('User sessions closed' if r.status_code == 200 else (r.text or 'Operation failed'), 'info' if r.status_code == 200 else 'error')
+        except Exception as e:
+            flash(f'Action failed: {e}', 'error')
+        return redirect(url_for('admin_page'))
+
+    # GET: load users
+    users = []
+    # In demo mode without real admin rights, do not call protected admin APIs
+    if not real_admin:
+        flash('Demo mode: viewing only. Data may be limited; actions are disabled.', 'info')
+        element_base = f"{MATRIX_ELEMENT_URL}/#/room/"
+        return render_template('admin.html', users=users, element_base=element_base, balance=None, last_user_id=None)
+    try:
+        r = requests.get(f"{BACKEND_URL}/admin/users", headers=headers, timeout=10)
+        if r.status_code == 200:
+            users = (r.json() or {}).get('users') or []
+        else:
+            flash(r.text or 'Failed to load users', 'error')
+    except Exception as e:
+        flash(f'Failed to load users: {e}', 'error')
+    element_base = f"{MATRIX_ELEMENT_URL}/#/room/"
+    return render_template('admin.html', users=users, element_base=element_base, balance=None, last_user_id=None)
+
+
+@app.route('/admin/balance', methods=['GET','POST'])
+def admin_balance():
+    headers = get_auth_headers()
+    if not headers:
+        flash('Please log in as an administrator.', 'warning')
+        return redirect(url_for('login'))
+    real_admin = _is_admin_user(headers)
+    demo_admin = False
+    try:
+        demo_admin = (request.cookies.get('isadmin') or '').strip().lower() in {'1','true','yes','on'}
+    except Exception:
+        demo_admin = False
+    if not real_admin and not demo_admin:
+        flash('Administrator privileges required.', 'error')
+        return redirect(url_for('home'))
+
+    bal = None
+    last_user_id = None
+    if request.method == 'GET':
+        try:
+            uid = int(request.args.get('user_id') or 0)
+        except Exception:
+            uid = 0
+        last_user_id = uid or None
+        if uid and real_admin:
+            try:
+                r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}", timeout=10)
+                if r.status_code == 200:
+                    bal = r.json()
+                else:
+                    flash(r.text or 'Failed to load balance', 'error')
+            except Exception as e:
+                flash(f'Failed to load balance: {e}', 'error')
+        elif uid and not real_admin:
+            flash('Demo mode: cannot fetch balances without admin privileges.', 'info')
+    else:
+        if not real_admin:
+            flash('Demo mode: balance changes are disabled.', 'warning')
+        else:
+            try:
+                uid = int(request.form.get('user_id') or 0)
+                amt = float(request.form.get('amount_xmr') or '0')
+                kind = request.form.get('kind') or 'fake'
+                op = request.form.get('op')
+                url = f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}/increase" if op == 'increase' else f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}/decrease"
+                r = requests.post(url, json={"amount_xmr": amt, "kind": kind}, timeout=10)
+                if r.status_code == 200:
+                    bal = r.json()
+                    flash('Balance updated', 'success')
+                else:
+                    flash(r.text or 'Balance update failed', 'error')
+                last_user_id = uid
+            except Exception as e:
+                flash(f'Balance operation failed: {e}', 'error')
+    # Load user list too for the table
+    users = []
+    if real_admin:
+        try:
+            r = requests.get(f"{BACKEND_URL}/admin/users", headers=headers, timeout=10)
+            if r.status_code == 200:
+                users = (r.json() or {}).get('users') or []
+        except Exception:
+            pass
+    else:
+        flash('Demo mode: user list hidden (requires real admin).', 'info')
+    element_base = f"{MATRIX_ELEMENT_URL}/#/room/"
+    return render_template('admin.html', users=users, element_base=element_base, balance=bal, last_user_id=last_user_id)
 
 
 # Debug/admin switch (frontend only)
@@ -1612,16 +1859,11 @@ ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
     """Return Matrix localpart for a user.
 
-    IMPORTANT: To avoid invite/join mismatches, we ALWAYS use a deterministic id-based localpart:
-    f"{MATRIX_USER_PREFIX}{user_id}". Human usernames are ignored for the localpart.
+    Preference order:
+    - sanitized username localpart if provided
+    - fallback to deterministic id-based localpart f"{MATRIX_USER_PREFIX}{user_id}"
     """
-    try:
-        uid = int(user_id)
-        if uid > 0:
-            return f"{MATRIX_USER_PREFIX}{uid}"
-    except Exception:
-        pass
-    # Fallback (rare): sanitize provided username if id is not usable
+    # Prefer username when available
     if username:
         try:
             raw = str(username).strip().lower()
@@ -1631,6 +1873,13 @@ def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
                 return local
         except Exception:
             pass
+    # Fallback to id-based mapping
+    try:
+        uid = int(user_id)
+        if uid > 0:
+            return f"{MATRIX_USER_PREFIX}{uid}"
+    except Exception:
+        pass
     return f"{MATRIX_USER_PREFIX}0"
 
 
@@ -1720,17 +1969,22 @@ def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, tr
     try:
         s_local = _mx_username_for_user(seller_id, seller_name)
         b_local = _mx_username_for_user(buyer_id, buyer_name)
-        s_pw = _mx_password_for_user(seller_id)
-        b_pw = _mx_password_for_user(buyer_id)
-        _matrix_register_if_needed(s_local, s_pw)
-        _matrix_register_if_needed(b_local, b_pw)
+        # Best-effort: ensure accounts exist for legacy flows (won't override existing)
+        try:
+            _matrix_register_if_needed(s_local, _mx_password_for_user(seller_id))
+            _matrix_register_if_needed(b_local, _mx_password_for_user(buyer_id))
+        except Exception:
+            pass
         # Prefer initiator's provided username; otherwise fall back to counterpart's name for localpart derivation
         inferred_initiator_name = initiator_name
         if not inferred_initiator_name:
             inferred_initiator_name = buyer_name if initiator_id == buyer_id else seller_name
         creator_local = _mx_username_for_user(initiator_id, inferred_initiator_name)
         other_mxid = _mx_mxid(b_local if initiator_id == seller_id else s_local)
-        tok = _matrix_login(creator_local, _mx_password_for_user(initiator_id))
+        # Try to use an existing token (from cookie via APIManager login); fall back to deterministic login
+        tok = _matrix_get_token_for_user(int(initiator_id))
+        if not tok:
+            tok = _matrix_login(creator_local, _mx_password_for_user(initiator_id))
         room_id, alias = _matrix_create_trade_room(tok, other_mxid, trade_id)
         if room_id:
             return {
@@ -2262,7 +2516,9 @@ if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
 
 # --- Reverse proxy for Matrix Element to avoid localhost:8080 dependency ---
-ELEMENT_BACKEND_BASE = "http://pupero-matrix-element"
+ELEMENT_BACKEND_BASE = os.getenv("ELEMENT_BACKEND_BASE", "http://pupero-matrix-element").strip()
+# --- Reverse proxy for Monero Explorer to make it available under /explorer even without K8s ---
+EXPLORER_BACKEND_BASE = os.getenv("EXPLORER_BACKEND_BASE", "http://explore:8081").strip()
 
 
 @app.route('/element', defaults={'path': ''}, methods=['GET', 'HEAD'])
@@ -2358,6 +2614,45 @@ def element_misc_proxy():
         return make_response(f"Element resource unavailable: {e}", 502)
 
 
+# --- Reverse proxy for Monero Explorer under /explorer ---
+@app.route('/explorer', defaults={'path': ''}, methods=['GET', 'HEAD'])
+@app.route('/explorer/', defaults={'path': ''}, methods=['GET', 'HEAD'])
+@app.route('/explorer/<path:path>', methods=['GET', 'HEAD'])
+def explorer_proxy(path: str):
+    base = EXPLORER_BACKEND_BASE.rstrip('/')
+    target = f"{base}/"
+    if path:
+        target = f"{base}/{path}"
+    qs = request.query_string.decode('utf-8') if request.query_string else ''
+    if qs:
+        target = target + ("&" if "?" in target else "?") + qs
+    try:
+        upstream = requests.request(request.method, target, stream=True, timeout=20)
+        status = upstream.status_code
+        content = upstream.content
+        headers = dict(upstream.headers)
+        ct = headers.get('Content-Type', '')
+        if isinstance(content, (bytes, bytearray)) and 'text/html' in ct.lower():
+            try:
+                html = content.decode('utf-8', errors='ignore')
+                if '<base ' not in html:
+                    html = html.replace('<head>', '<head><base href="/explorer/">', 1)
+                for attr in ['href', 'src', 'action']:
+                    html = html.replace(f'{attr}="/', f'{attr}="/explorer/')
+                html = html.replace('url(/', 'url(/explorer/')
+                html = html.replace('/explorer//explorer/', '/explorer/')
+                content = html.encode('utf-8')
+            except Exception:
+                pass
+        resp = make_response(content, status)
+        for h in ['Content-Type', 'Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+            if h in headers:
+                resp.headers[h] = headers[h]
+        return resp
+    except Exception as e:
+        return make_response(f"Explorer backend unavailable: {e}", 502)
+
+
 # --- Native Matrix chat API (no iframe) ---
 
 def _json_response(obj, status: int = 200):
@@ -2415,6 +2710,13 @@ MATRIX_TOKENS: dict[int, str] = {}
 def _matrix_get_token_for_user(user_id: int) -> str | None:
     if not MATRIX_ENABLED:
         return None
+    # Prefer a token delivered by the backend on login (cookie)
+    try:
+        cookie_tok = request.cookies.get('matrix_access_token')
+        if cookie_tok:
+            return cookie_tok
+    except Exception:
+        pass
     try:
         uid = int(user_id)
     except Exception:
