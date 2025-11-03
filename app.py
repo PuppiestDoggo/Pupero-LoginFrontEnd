@@ -1611,27 +1611,27 @@ ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 
 def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
     """Return Matrix localpart for a user.
-    Prefer the provided human username (sanitized) over the numeric id.
-    Fallback to prefix+id if username is missing or sanitizes to empty.
+
+    IMPORTANT: To avoid invite/join mismatches, we ALWAYS use a deterministic id-based localpart:
+    f"{MATRIX_USER_PREFIX}{user_id}". Human usernames are ignored for the localpart.
     """
-    # If a username is provided, sanitize to a valid Matrix localpart
+    try:
+        uid = int(user_id)
+        if uid > 0:
+            return f"{MATRIX_USER_PREFIX}{uid}"
+    except Exception:
+        pass
+    # Fallback (rare): sanitize provided username if id is not usable
     if username:
         try:
             raw = str(username).strip().lower()
-            # Matrix localpart allowed chars: a-z 0-9 . _ = -
             allowed = set("abcdefghijklmnopqrstuvwxyz0123456789._=-")
-            local = ''.join(ch if ch in allowed else '_' for ch in raw)
-            local = local.strip('_')
+            local = ''.join(ch if ch in allowed else '_' for ch in raw).strip('_')
             if local:
                 return local
         except Exception:
             pass
-    # Fallback to legacy scheme using numeric id
-    try:
-        uid = int(user_id)
-    except Exception:
-        uid = 0
-    return f"{MATRIX_USER_PREFIX}{uid}"
+    return f"{MATRIX_USER_PREFIX}0"
 
 
 def _mx_mxid(username: str) -> str:
@@ -1948,6 +1948,12 @@ def trade_start(offer_id: str):
     # Parse amounts similar to offer_bid
     fiat_amount_raw = request.form.get('fiat_amount')
     xmr_amount_raw = request.form.get('xmr_amount')
+    # Optional initial chat message to counterparty
+    initial_message = None
+    try:
+        initial_message = (request.form.get('message') or '').strip()
+    except Exception:
+        initial_message = None
 
     def _to_float(val):
         try:
@@ -2105,6 +2111,19 @@ def trade_start(offer_id: str):
     except Exception as e:
         TRADES[trade_id]['matrix'] = None
         TRADES[trade_id]['last_error'] = f"matrix_setup_failed: {e}"
+
+    # If an initial message was provided, send it as the very first chat message (best-effort)
+    try:
+        if initial_message and TRADES[trade_id].get('matrix'):
+            tok = _matrix_get_token_for_user(int(user_id))
+            rid = _matrix_resolve_room_id_for_trade(TRADES[trade_id])
+            if tok and rid:
+                _matrix_ensure_join(tok, rid)
+                _matrix_send_message(tok, rid, str(initial_message))
+    except Exception:
+        # Ignore failures; chat UI will still work
+        pass
+
     return redirect(url_for('trade_view', trade_id=trade_id))
 
 
