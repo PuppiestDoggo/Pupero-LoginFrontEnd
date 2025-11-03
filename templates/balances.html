@@ -65,6 +65,7 @@
 <p>Balance not available.</p>
 {% endif %}
 
+{% if is_admin %}
 <h2>Increase Balance</h2>
 <form method="post" action="{{ url_for('balances_increase') }}" style="display:flex;gap:8px;align-items:end;">
   <label>Kind
@@ -92,6 +93,7 @@
   </label>
   <button type="submit">Decrease</button>
 </form>
+{% endif %}
 
 <h2>Withdraw (Send Monero)</h2>
 <form method="post" action="{{ url_for('balances_withdraw') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
@@ -103,7 +105,13 @@
   </label>
   <button type="submit">Send</button>
 </form>
+{% if is_admin %}
 <p style="color:#555;max-width:720px;">
   Note: You cannot withdraw more than your total balance (Fake XMR + Real XMR). The system will enforce this limit server-side.
 </p>
+{% else %}
+<p style="color:#555;max-width:720px;">
+  Note: You cannot withdraw more than your total balance. The system will enforce this limit server-side.
+</p>
+{% endif %}
 {% endblock %}

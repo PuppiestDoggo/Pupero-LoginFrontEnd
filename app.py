@@ -21,28 +21,56 @@ import time
 import secrets
 from urllib.parse import urlencode
 
+# Short-lived cache for user profile by access token (improves reliability for AJAX calls)
+# { token: {"id": int, "username": str, "ts": epoch_seconds} }
+PROFILE_CACHE: dict[str, dict] = {}
+
 
 def _get_logged_in_username() -> str:
     """
     Return the username of the current logged-in user by calling Login service /user/profile
-    using the access_token cookie. Returns empty string if unavailable.
+    using the access_token cookie. Uses a short-lived in-memory cache to improve reliability
+    for AJAX chat calls. Returns empty string if unavailable.
     """
+    token = None
     try:
         token = request.cookies.get('access_token')
+    except Exception:
+        token = None
+    # Try cache first
+    try:
+        if token:
+            ent = PROFILE_CACHE.get(token)
+            if ent and (time.time() - float(ent.get('ts', 0))) < 300:
+                return ent.get('username') or ""
+    except Exception:
+        pass
+    # Fetch from backend
+    try:
         if not token:
             return ""
         headers = {"Authorization": f"Bearer {token}"}
         r = requests.get(f"{BACKEND_URL}/user/profile", headers=headers, timeout=5)
         if r.status_code == 200:
-            data = r.json()
-            # Prefer username; fallback to email local part
+            data = r.json() or {}
             uname = data.get('username') or ''
             if not uname:
                 email = data.get('email') or ''
                 uname = email.split('@')[0] if '@' in email else email
+            # Update cache
+            try:
+                uid = int(data.get('id') or 0)
+                PROFILE_CACHE[token] = {"id": uid, "username": uname or "", "ts": time.time()}
+            except Exception:
+                pass
             return uname or ""
     except Exception:
-        pass
+        # Fallback to stale cache if present
+        try:
+            if token and PROFILE_CACHE.get(token):
+                return PROFILE_CACHE[token].get('username') or ""
+        except Exception:
+            pass
     return ""
 
 
@@ -877,6 +905,28 @@ def offer_bid(offer_id: str):
         if xmr_amount is None or xmr_amount <= 0:
             flash('Invalid amount', 'error')
             return redirect(url_for('offer_detail', offer_id=offer_id))
+
+        # Enforce fiat min/max limits if provided in the offer description
+        try:
+            def _as_float(v):
+                try:
+                    s = (v or '').strip()
+                    if s == '':
+                        return None
+                    return float(s)
+                except Exception:
+                    return None
+            min_limit = _as_float(ad.get('min_limit'))
+            max_limit = _as_float(ad.get('max_limit'))
+            fiat_total = float(xmr_amount) * float(price_per_xmr)
+            if min_limit is not None and fiat_total < min_limit:
+                flash(f'Amount below minimum limit: {min_limit} {ad.get("fiat", "").upper()}', 'warning')
+                return redirect(url_for('offer_detail', offer_id=offer_id))
+            if max_limit is not None and fiat_total > max_limit:
+                flash(f'Amount exceeds maximum limit: {max_limit} {ad.get("fiat", "").upper()}', 'warning')
+                return redirect(url_for('offer_detail', offer_id=offer_id))
+        except Exception:
+            pass
     except Exception as e:
         flash(f'Failed to prepare trade: {e}', 'error')
         return redirect(url_for('offer_detail', offer_id=offer_id))
@@ -1836,17 +1886,51 @@ def _resolve_roles_for_offer(offer: dict, current_user_id: int) -> tuple[int, in
     """
     Return (seller_id, buyer_id, side) where side is the offer side ('sell' means offer owner sells XMR).
     If offer side is 'buy', the current user is the seller (providing XMR) and offer owner is the buyer.
+
+    More robustly resolves the offer owner id by falling back to common fields when `seller_id` is missing:
+    - seller_id
+    - owner_id
+    - user_id
+    - creator_id
+    - seller.id / owner.id / user.id (dict forms)
     """
+    # Resolve side safely
     try:
         raw_desc = offer.get('desc')
         ad = _parse_offer_desc(raw_desc)
         side = (ad.get('side') or 'sell').lower()
     except Exception:
         side = 'sell'
-    offer_owner_id = int(offer.get('seller_id') or 0)
+
+    def _to_int(v) -> int:
+        try:
+            return int(v)
+        except Exception:
+            return 0
+
+    # Try several common owner fields
+    offer_owner_id = _to_int(offer.get('seller_id'))
+    if not offer_owner_id:
+        offer_owner_id = _to_int(offer.get('owner_id'))
+    if not offer_owner_id:
+        offer_owner_id = _to_int(offer.get('user_id'))
+    if not offer_owner_id:
+        offer_owner_id = _to_int(offer.get('creator_id'))
+    if not offer_owner_id:
+        # Nested dict variants
+        for key in ('seller', 'owner', 'user'):
+            ent = offer.get(key)
+            if isinstance(ent, dict):
+                offer_owner_id = _to_int(ent.get('id'))
+                if offer_owner_id:
+                    break
+
+    # Return roles based on side
     if side == 'sell':
+        # Offer owner is providing XMR
         return offer_owner_id, current_user_id, 'sell'
     else:
+        # Current user provides XMR to the offer owner
         return current_user_id, offer_owner_id, 'buy'
 
 
@@ -1888,6 +1972,27 @@ def trade_start(offer_id: str):
         if xmr_amount is None or xmr_amount <= 0:
             flash('Invalid amount', 'error')
             return redirect(url_for('offer_detail', offer_id=offer_id))
+        # Enforce fiat min/max limits if provided in the offer description
+        try:
+            def _as_float(v):
+                try:
+                    s = (v or '').strip()
+                    if s == '':
+                        return None
+                    return float(s)
+                except Exception:
+                    return None
+            min_limit = _as_float(ad.get('min_limit'))
+            max_limit = _as_float(ad.get('max_limit'))
+            fiat_total = float(xmr_amount) * float(price_per_xmr)
+            if min_limit is not None and fiat_total < min_limit:
+                flash(f'Amount below minimum limit: {min_limit} {ad.get("fiat", "").upper()}', 'warning')
+                return redirect(url_for('offer_detail', offer_id=offer_id))
+            if max_limit is not None and fiat_total > max_limit:
+                flash(f'Amount exceeds maximum limit: {max_limit} {ad.get("fiat", "").upper()}', 'warning')
+                return redirect(url_for('offer_detail', offer_id=offer_id))
+        except Exception:
+            pass
     except Exception as e:
         flash(f'Failed to prepare trade: {e}', 'error')
         return redirect(url_for('offer_detail', offer_id=offer_id))
@@ -1901,6 +2006,7 @@ def trade_start(offer_id: str):
             return redirect(url_for('offer_detail', offer_id=offer_id))
     except Exception:
         pass
+
     # Derive participant usernames for fallback authorization/alerts
     offer_owner_name = ""
     try:
@@ -1909,12 +2015,26 @@ def trade_start(offer_id: str):
     except Exception:
         offer_owner_name = ""
     current_name = _get_logged_in_username() or ""
-    if side == 'sell':
+    if str(side).lower() == 'sell':
         seller_name = offer_owner_name
         buyer_name = current_name
     else:
         seller_name = current_name
         buyer_name = offer_owner_name
+
+    # Pre-check balances to avoid confusing errors
+    try:
+        sid_int = int(seller_id or 0)
+        if sid_int and float(xmr_amount) > 0:
+            fb = _get_fake_balance(sid_int)
+            if fb is not None and fb < float(xmr_amount):
+                if str(side).lower() == 'sell':
+                    flash('Seller has insufficient XMR to escrow the requested amount. Please try later or choose another offer.', 'error')
+                else:
+                    flash('You do not have enough XMR to sell this amount. Please reduce the amount or deposit more XMR.', 'error')
+                return redirect(url_for('offer_detail', offer_id=offer_id))
+    except Exception:
+        pass
 
     # Create trade id early to tie reservation context
     trade_id = _gen_trade_id()
@@ -1928,11 +2048,14 @@ def trade_start(offer_id: str):
             'trade_id': trade_id,
         }
         r_res = requests.post(f"{TRANSACTIONS_SERVICE_URL}/reserve", json=reserve_payload, timeout=10)
+
         if r_res.status_code != 200:
             try:
                 detail = r_res.json().get('detail', r_res.text)
             except Exception:
                 detail = r_res.text
+            if isinstance(detail, str) and 'Insufficient fake balance' in detail and str(side).lower() == 'sell':
+                detail = 'Seller has insufficient XMR to escrow at the moment. Please try again later or choose another offer.'
             flash(f'Cannot open trade: {detail}', 'error')
             return redirect(url_for('offer_detail', offer_id=offer_id))
         res_body = r_res.json() or {}
@@ -2228,10 +2351,38 @@ def _json_response(obj, status: int = 200):
 
 
 def _is_trade_participant(t: dict, user_id: int, username: str | None) -> bool:
+    """Return True if the requester is one of the two participants of the trade.
+    Accept either numeric user_id match, username match, or quick-access mapping match.
+    Robust to type mismatches and missing fields.
+    """
     try:
-        if user_id and user_id in {int(t.get('buyer_id') or 0), int(t.get('seller_id') or 0)}:
+        # Normalize ids
+        uid = 0
+        try:
+            uid = int(user_id or 0)
+        except Exception:
+            uid = 0
+        buyer_id = 0
+        seller_id = 0
+        try:
+            buyer_id = int(t.get('buyer_id') or 0)
+        except Exception:
+            buyer_id = 0
+        try:
+            seller_id = int(t.get('seller_id') or 0)
+        except Exception:
+            seller_id = 0
+        if uid and uid in {buyer_id, seller_id}:
             return True
-        if username and username in {t.get('buyer_name'), t.get('seller_name')}:
+        # Username fallback
+        if username:
+            if username == t.get('buyer_name') or username == t.get('seller_name'):
+                return True
+        # Quick-access mapping fallback (helps when names are missing or ids desync)
+        tid = (t or {}).get('id')
+        if uid and ACTIVE_TRADE_ID_BY_USER.get(uid) == tid:
+            return True
+        if username and ACTIVE_TRADE_ID_BY_USERNAME.get(username) == tid:
             return True
     except Exception:
         return False
