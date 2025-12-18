@@ -76,6 +76,17 @@ def _get_logged_in_username() -> str:
     return ""
 
 
+def _fetch_user_info(user_id: int) -> dict | None:
+    """Fetch public user info (username, matrix_localpart) from backend."""
+    try:
+        r = requests.get(f"{BACKEND_URL}/users/{user_id}/public", timeout=4)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return None
+
+
 def _attach_seller_name(offer: dict) -> dict:
     """Parse offer['desc'] if JSON to pull seller_name and attach as offer['seller_name']"""
     seller_name = ""
@@ -467,8 +478,8 @@ def login():
                 except Exception:
                     flash('Login failed: Invalid response from server', 'error')
                     return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
-                # Set cookies but stay on the same page
-                resp = make_response(render_template('login.html', stage='success'))
+                # Set cookies then redirect to home to force full UI refresh (header)
+                resp = make_response(redirect(url_for('home')))
                 secure_flag = SECURE_COOKIES or request.is_secure
                 samesite = SESSION_COOKIE_SAMESITE
                 max_age_access = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
@@ -539,7 +550,8 @@ def login():
                 except Exception:
                     flash('Login failed: Invalid response from server', 'error')
                     return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
-                resp = make_response(render_template('login.html', stage='success'))
+                # Set cookies then redirect to home to force full UI refresh (header)
+                resp = make_response(redirect(url_for('home')))
                 secure_flag = SECURE_COOKIES or request.is_secure
                 samesite = SESSION_COOKIE_SAMESITE
                 max_age_access = REMEMBER_ME_DAYS * 24 * 60 * 60 if remember_flag else 60 * 60
@@ -586,6 +598,7 @@ def profile():
             payload['phrase'] = request.form.get('phrase', '')
         elif action == 'change_username':
             payload['username'] = request.form.get('username', '')
+            payload['current_password'] = request.form.get('current_password', '')
         elif action == 'change_email':
             payload['new_email'] = request.form.get('new_email', '')
             payload['current_password'] = request.form.get('current_password', '')
@@ -653,15 +666,65 @@ def profile():
                     totp_enabled = False
         except Exception:
             totp_enabled = False
+        
+        # Fetch reviews
+        reviews_summary = None
+        try:
+             r_rev = requests.get(f'{BACKEND_URL}/users/{user_data["id"]}/reviews', headers=headers, timeout=5)
+             if r_rev.status_code == 200:
+                 reviews_summary = r_rev.json()
+        except Exception:
+             pass
+
         sessions = [{
             'ip': request.remote_addr,
             'user_agent': request.headers.get('User-Agent', ''),
             'current': True
         }]
-        return render_template('profile.html', user=user_data, sessions=sessions, totp_enabled=totp_enabled)
+        return render_template('profile.html', user=user_data, sessions=sessions, totp_enabled=totp_enabled, reviews_summary=reviews_summary)
     else:
         flash('Unauthorized', 'error')
         return redirect(url_for('login'))
+
+
+@app.route('/user/<username>')
+def public_profile(username: str):
+    # Fetch user info
+    user_info = {}
+    try:
+        r = requests.get(f"{BACKEND_URL}/users/by-username/{username}", timeout=5)
+        if r.status_code != 200:
+            flash(f"User {username} not found", "error")
+            return redirect(url_for('offers'))
+        user_info = r.json()
+    except Exception as e:
+        flash(f"Error fetching user profile: {e}", "error")
+        return redirect(url_for('offers'))
+
+    # Fetch reviews
+    reviews_summary = None
+    if user_info.get('id'):
+        try:
+            r_rev = requests.get(f'{BACKEND_URL}/users/{user_info["id"]}/reviews', timeout=5)
+            if r_rev.status_code == 200:
+                reviews_summary = r_rev.json()
+        except Exception:
+            pass
+    
+    # Check if current user is admin (for moderation buttons)
+    is_admin = False
+    try:
+        headers = get_auth_headers()
+        if headers:
+            resp = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=5)
+            if resp.status_code == 200:
+                u = resp.json() or {}
+                if u.get('role') in ('admin', 'superadmin'):
+                    is_admin = True
+    except Exception:
+        pass
+
+    return render_template('public_profile.html', user=user_info, reviews_summary=reviews_summary, is_admin=is_admin)
 
 
 # Enable TOTP
@@ -1083,6 +1146,40 @@ def offer_detail(offer_id: str):
         is_user_seller = (int(uid) == int(seller_id))
         # Self-trade guard: if roles resolve to the same user, block trade init
         self_trade_block = (int(seller_id or 0) == int(buyer_id or 0) and int(seller_id or 0) != 0)
+
+        # Fetch reviews for the offer owner (who is always the one creating the offer)
+        # offer owner id is what matters. 
+        # _resolve_roles_for_offer: if offer is SELL side, owner is seller_id. If BUY side, owner is buyer_id.
+        # But wait, logic in _resolve_roles_for_offer might be complex.
+        # Let's rely on offer['user_id'] if available?
+        # The offer dict from OFFERS_SERVICE usually has user_id.
+        owner_id = offer.get('user_id')
+        reviews_summary = None
+        if owner_id:
+            try:
+                # We reuse headers if available or public endpoint?
+                # /users/{id}/reviews is public in backend?
+                # Backend: @app.get("/users/{user_id}/reviews", response_model=ReviewsSummary) -> public (no Depends(get_current_user))?
+                # Check backend code: "def get_user_reviews(... session ...)" - It does NOT depend on current_user!
+                # So we don't need auth headers necessarily, but using them is fine.
+                r_rev = requests.get(f'{BACKEND_URL}/users/{owner_id}/reviews', timeout=5)
+                if r_rev.status_code == 200:
+                    reviews_summary = r_rev.json()
+            except Exception:
+                pass
+
+        is_admin = False
+        try:
+            headers = get_auth_headers()
+            if headers:
+                resp = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    u = resp.json() or {}
+                    if u.get('role') in ('admin', 'superadmin'):
+                        is_admin = True
+        except Exception:
+            pass
+
     except Exception as e:
         flash(f'Failed to load offer: {e}', 'error')
         return redirect(url_for('offers'))
@@ -1100,7 +1197,7 @@ def offer_detail(offer_id: str):
         pass
     return render_template('offer_detail.html', offer=offer, ad=ad, price_per_xmr=price_per_xmr, offer_side=side,
                            is_user_buyer=is_user_buyer, is_user_seller=is_user_seller,
-                           self_trade_block=self_trade_block)
+                           self_trade_block=self_trade_block, reviews_summary=reviews_summary, is_admin=is_admin)
 
 
 @app.route('/offers/<offer_id>/bid', methods=['POST'])
@@ -1859,15 +1956,18 @@ ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
     """Return Matrix localpart for a user.
 
-    IMPORTANT: Use a stable, deterministic mapping based on the immutable user_id
-    to avoid breaking Matrix accounts when application usernames are changed.
-
-    Historically we attempted to derive the Matrix localpart from the (mutable)
-    username, which caused chat failures after username changes. We now always
-    use the id-based mapping: f"{MATRIX_USER_PREFIX}{user_id}".
-    The `username` parameter is ignored and kept only for backward compatibility
-    with older call sites.
+    Requirement: The Matrix account must use the USERNAME (not the ID).
+    We therefore prefer a sanitized username as the localpart. If no username is
+    available, we fall back to a deterministic id-based localpart to avoid failure.
     """
+    # Prefer provided username when available
+    raw = (username or '').strip().lower()
+    if raw:
+        allowed = set("abcdefghijklmnopqrstuvwxyz0123456789._=-")
+        local = ''.join(ch if ch in allowed else '_' for ch in raw).strip('_')
+        if local:
+            return local
+    # Fallback to id-based localpart if username is missing/empty after sanitization
     try:
         uid = int(user_id)
         if uid > 0:
@@ -1926,17 +2026,18 @@ def _matrix_login(localpart: str, password: str) -> str | None:
     return None
 
 
-def _matrix_create_trade_room(creator_token: str, invite_mxid: str, trade_id: str) -> tuple[str | None, str | None]:
+def _matrix_create_trade_room(creator_token: str, invite_mxids: list[str], trade_id: str, seller_name: str | None = None, buyer_name: str | None = None) -> tuple[str | None, str | None]:
     if not MATRIX_ENABLED or not creator_token:
         return None, None
     url = f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/createRoom"
     headers = {"Authorization": f"Bearer {creator_token}"}
     alias_local = f"trade_{trade_id}"
+    room_name = f"{seller_name or 'seller'}-{buyer_name or 'buyer'}-{trade_id}"
     payload = {
         "preset": "private_chat",
         "is_direct": True,
-        "invite": [invite_mxid],
-        "name": f"Trade {trade_id}",
+        "invite": list(dict.fromkeys(invite_mxids)),
+        "name": room_name,
         "room_alias_name": alias_local,
     }
     try:
@@ -1948,7 +2049,10 @@ def _matrix_create_trade_room(creator_token: str, invite_mxid: str, trade_id: st
             return room_id, alias
         else:
             # Retry without alias if alias conflict
-            r2 = requests.post(url, headers=headers, json={**payload, "room_alias_name": None}, timeout=8)
+            retry_payload = dict(payload)
+            # Omit the alias field entirely to avoid Synapse TypeError on None
+            retry_payload.pop("room_alias_name", None)
+            r2 = requests.post(url, headers=headers, json=retry_payload, timeout=8)
             if r2.status_code in (200, 201):
                 data = r2.json() or {}
                 return data.get("room_id"), None
@@ -1961,25 +2065,50 @@ def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, tr
     if not MATRIX_ENABLED:
         return None
     try:
-        s_local = _mx_username_for_user(seller_id, seller_name)
-        b_local = _mx_username_for_user(buyer_id, buyer_name)
+        # Resolve accurate localparts using backend info
+        s_info = _fetch_user_info(seller_id)
+        b_info = _fetch_user_info(buyer_id)
+        
+        # Update names for room naming if fetched
+        if s_info and s_info.get('username'):
+            seller_name = s_info['username']
+        if b_info and b_info.get('username'):
+            buyer_name = b_info['username']
+
+        s_local = s_info.get('matrix_localpart') if s_info else None
+        if not s_local:
+             s_local = _mx_username_for_user(seller_id, s_info.get('username') if s_info else seller_name)
+
+        b_local = b_info.get('matrix_localpart') if b_info else None
+        if not b_local:
+             b_local = _mx_username_for_user(buyer_id, b_info.get('username') if b_info else buyer_name)
+
         # Best-effort: ensure accounts exist for legacy flows (won't override existing)
         try:
             _matrix_register_if_needed(s_local, _mx_password_for_user(seller_id))
             _matrix_register_if_needed(b_local, _mx_password_for_user(buyer_id))
         except Exception:
             pass
-        # Prefer initiator's provided username; otherwise fall back to counterpart's name for localpart derivation
-        inferred_initiator_name = initiator_name
-        if not inferred_initiator_name:
-            inferred_initiator_name = buyer_name if initiator_id == buyer_id else seller_name
-        creator_local = _mx_username_for_user(initiator_id, inferred_initiator_name)
-        other_mxid = _mx_mxid(b_local if initiator_id == seller_id else s_local)
+
+        # Determine creator localpart from the resolved values
+        creator_local = None
+        if initiator_id == seller_id:
+            creator_local = s_local
+        elif initiator_id == buyer_id:
+            creator_local = b_local
+        else:
+            creator_local = _mx_username_for_user(initiator_id, initiator_name)
+
+        other_local = b_local if initiator_id == seller_id else s_local
+        other_mxid = _mx_mxid(other_local)
+        creator_mxid = _mx_mxid(creator_local)
+
         # Try to use an existing token (from cookie via APIManager login); fall back to deterministic login
         tok = _matrix_get_token_for_user(int(initiator_id))
         if not tok:
             tok = _matrix_login(creator_local, _mx_password_for_user(initiator_id))
-        room_id, alias = _matrix_create_trade_room(tok, other_mxid, trade_id)
+        # Invite only the other participant (creator is joined automatically)
+        room_id, alias = _matrix_create_trade_room(tok, [other_mxid], trade_id, seller_name, buyer_name)
         if room_id:
             return {
                 "room_id": room_id,
@@ -2410,7 +2539,37 @@ def trade_view(trade_id: str):
             matrix_embed_url = f"{MATRIX_ELEMENT_URL}/#/room/{target}"
     except Exception:
         matrix_embed_url = None
-    return render_template('trade.html', trade=t, role=role, matrix_embed_url=matrix_embed_url)
+    
+    # Fetch reviews if completed
+    reviews = []
+    can_review = False
+    if t.get('status') == 'completed':
+        try:
+             headers = get_auth_headers()
+             if headers:
+                 rr = requests.get(f"{BACKEND_URL}/reviews/by-trade/{trade_id}", headers=headers, timeout=5)
+                 if rr.status_code == 200:
+                     reviews = rr.json()
+        except Exception:
+             pass
+        
+        # Check if I reviewed
+        my_review = next((r for r in reviews if r.get('reviewer_user_id') == user_id), None)
+        can_review = (my_review is None)
+
+    is_admin = False
+    try:
+        headers = get_auth_headers()
+        if headers:
+            resp = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=5)
+            if resp.status_code == 200:
+                u = resp.json() or {}
+                if u.get('role') in ('admin', 'superadmin'):
+                    is_admin = True
+    except Exception:
+        pass
+
+    return render_template('trade.html', trade=t, role=role, matrix_embed_url=matrix_embed_url, reviews=reviews, can_review=can_review, is_admin=is_admin)
 
 
 @app.route('/trade/<trade_id>/money_sent', methods=['POST'])
@@ -2490,6 +2649,14 @@ def trade_payment_received(trade_id: str):
                 ACTIVE_TRADE_ID_BY_USERNAME.pop(sname, None)
             if bname and ACTIVE_TRADE_ID_BY_USERNAME.get(bname) == trade_id:
                 ACTIVE_TRADE_ID_BY_USERNAME.pop(bname, None)
+            
+            # Increment successful trades count for both parties
+            try:
+                requests.post(f"{BACKEND_URL}/users/{int(t['buyer_id'])}/increment_trades", timeout=5)
+                requests.post(f"{BACKEND_URL}/users/{int(t['seller_id'])}/increment_trades", timeout=5)
+            except Exception as e:
+                logging.error(f"Failed to increment trade count: {e}")
+
             flash('Trade completed. XMR transferred (escrow committed).', 'success')
         else:
             try:
@@ -2506,8 +2673,110 @@ def trade_payment_received(trade_id: str):
     return redirect(url_for('trade_view', trade_id=trade_id))
 
 
+@app.route('/trade/<trade_id>/review', methods=['POST'])
+def submit_review(trade_id: str):
+    headers = get_auth_headers()
+    if not headers:
+        return redirect(url_for('login'))
+    
+    rating = request.form.get('rating')
+    comment = request.form.get('comment')
+    
+    t = TRADES.get(trade_id)
+    if not t:
+        flash('Trade not found', 'error')
+        return redirect(url_for('offers'))
+    
+    user_id = _get_logged_in_user_id()
+    if user_id == t['buyer_id']:
+        reviewee_id = t['seller_id']
+    elif user_id == t['seller_id']:
+        reviewee_id = t['buyer_id']
+    else:
+        flash('Not authorized', 'error')
+        return redirect(url_for('trade_view', trade_id=trade_id))
+        
+    payload = {
+        "trade_id": trade_id,
+        "reviewee_user_id": int(reviewee_id),
+        "rating": int(rating),
+        "comment": comment
+    }
+    
+    try:
+        r = requests.post(f"{BACKEND_URL}/reviews", json=payload, headers=headers, timeout=10)
+        if r.status_code == 200:
+             flash('Review submitted!', 'success')
+        else:
+             try:
+                 err = r.json().get('detail', r.text)
+             except:
+                 err = r.text
+             flash(f'Review failed: {err}', 'error')
+    except Exception as e:
+        flash(f'Review failed: {e}', 'error')
+        
+    return redirect(url_for('trade_view', trade_id=trade_id))
+
+
+@app.route('/admin/reviews/<int:review_id>/delete', methods=['POST'])
+def delete_review(review_id: int):
+    headers = get_auth_headers()
+    if not headers:
+        return redirect(url_for('login'))
+    
+    try:
+        r = requests.delete(f"{BACKEND_URL}/admin/reviews/{review_id}", headers=headers, timeout=5)
+        if r.status_code == 200:
+            flash('Review deleted.', 'success')
+        else:
+             try:
+                 err = r.json().get('detail', r.text)
+             except:
+                 err = r.text
+             flash(f'Delete failed: {err}', 'error')
+    except Exception as e:
+        flash(f'Delete failed: {e}', 'error')
+    
+    return redirect(request.referrer or url_for('profile'))
+
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
+
+# Matrix Client-Server API reverse proxy at /matrix → Synapse /_matrix
+@app.route('/matrix', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
+@app.route('/matrix/<path:subpath>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'])
+def matrix_proxy(subpath: str):
+    base = MATRIX_HS_URL_BACKEND.rstrip('/')
+    target = f"{base}/{subpath}" if subpath else base
+    # Forward method, headers (without Host/Content-Length), and body
+    hop = {'host', 'content-length', 'connection', 'upgrade', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding'}
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in hop}
+    try:
+        resp_up = requests.request(
+            method=request.method,
+            url=target,
+            params=request.args,
+            data=(request.get_data() if request.method not in ('GET', 'HEAD') else None),
+            headers=headers,
+            stream=True,
+            timeout=30,
+        )
+    except Exception as e:
+        return make_response(f"Matrix backend unavailable: {e}", 502)
+    # Build downstream response
+    out = Response(
+        resp_up.iter_content(chunk_size=4096),
+        status=resp_up.status_code,
+        content_type=resp_up.headers.get('Content-Type')
+    )
+    # Copy common headers
+    for h in ['Cache-Control', 'ETag', 'Last-Modified', 'Expires']:
+        if h in resp_up.headers:
+            out.headers[h] = resp_up.headers[h]
+    return out
+
 
 # --- Reverse proxy for Matrix Element to avoid localhost:8080 dependency ---
 ELEMENT_BACKEND_BASE = os.getenv("ELEMENT_BACKEND_BASE", "http://pupero-matrix-element").strip()
@@ -2557,7 +2826,8 @@ def element_proxy_webui(path: str):
         content = upstream.content
         headers = dict(upstream.headers)
 
-        # If HTML, inject <base href="/element/"> and rewrite root-relative URLs
+        # If HTML, inject <base href="/element/"> only. Avoid additional rewriting
+        # to prevent double /element/ prefixes like /element/element/... in assets.
         ct = headers.get('Content-Type', '')
         if isinstance(content, (bytes, bytearray)) and 'text/html' in ct.lower():
             try:
@@ -2565,13 +2835,6 @@ def element_proxy_webui(path: str):
                 # Inject base into <head> if not present
                 if '<base ' not in html:
                     html = html.replace('<head>', '<head><base href="/element/">', 1)
-                # Rewrite common root-relative attrs to live under /element/
-                for attr in ['href', 'src', 'action']:
-                    html = html.replace(f'{attr}="/', f'{attr}="/element/')
-                # Rewrite CSS url(/...)
-                html = html.replace('url(/', 'url(/element/')
-                # De-dupe any accidental double prefixes
-                html = html.replace('/element//element/', '/element/')
                 content = html.encode('utf-8')
             except Exception:
                 pass
@@ -2733,28 +2996,9 @@ def _matrix_get_token_for_user(user_id: int) -> str | None:
             return cookie_tok
     except Exception:
         pass
-    try:
-        uid = int(user_id)
-    except Exception:
-        return None
-    tok = MATRIX_TOKENS.get(uid)
-    if tok:
-        return tok
-    # Prefer the current logged-in username when deriving Matrix localpart
-    try:
-        current_uname = _get_logged_in_username()
-    except Exception:
-        current_uname = None
-    local = _mx_username_for_user(uid, current_uname)
-    pw = _mx_password_for_user(uid)
-    try:
-        _matrix_register_if_needed(local, pw)
-    except Exception:
-        pass
-    tok = _matrix_login(local, pw)
-    if tok:
-        MATRIX_TOKENS[uid] = tok
-    return tok
+    # Do not auto-register/login on the frontend; rely on backend-provided token
+    # to ensure consistency with the requirement that Matrix password equals site password.
+    return None
 
 
 def _matrix_resolve_room_id_for_trade(trade: dict) -> str | None:

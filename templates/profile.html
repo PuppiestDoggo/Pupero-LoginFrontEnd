@@ -18,6 +18,7 @@
     <form method="post">
         <input type="hidden" name="action" value="change_username">
         <label>New Username: <input type="text" name="username" required></label><br>
+        <label>Current Password: <input type="password" name="current_password" required></label><br>
         <input type="submit" value="Change Username">
     </form>
 
@@ -76,5 +77,29 @@
         </table>
     {% else %}
         <p>No active sessions detected.</p>
+    {% endif %}
+
+    <h2>Reviews</h2>
+    {% if reviews_summary %}
+        <p>Average Rating: {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} reviews)</p>
+        {% if reviews_summary.reviews %}
+            <ul>
+            {% for r in reviews_summary.reviews %}
+                <li>
+                    <strong>{{ r.rating }}/5</strong> - {{ r.comment }} 
+                    <small>({{ r.created_at }})</small>
+                    {% if user.role in ['admin', 'superadmin'] %}
+                        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
+                           <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete</button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>No reviews yet.</p>
+        {% endif %}
+    {% else %}
+        <p>No reviews loaded.</p>
     {% endif %}
 {% endblock %}

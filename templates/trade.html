@@ -124,5 +124,45 @@
   {% endif %}
 {% endif %}
 
+<hr>
+<h3>Reviews</h3>
+{% if reviews %}
+  <ul>
+  {% for r in reviews %}
+    <li>
+      <strong>Rating: {{ r.rating }}/5</strong>
+      <p>{{ r.comment }}</p>
+      <small>By user {{ r.reviewer_user_id }}</small>
+      {% if is_admin %}
+        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
+           <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete (Admin)</button>
+        </form>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p>No reviews yet.</p>
+{% endif %}
+
+{% if can_review and trade.status == 'completed' %}
+  <h4>Leave a Review</h4>
+  <form method="post" action="{{ url_for('submit_review', trade_id=trade.id) }}">
+    <label>Rating: 
+      <select name="rating">
+        <option value="5">5 - Excellent</option>
+        <option value="4">4 - Good</option>
+        <option value="3">3 - Average</option>
+        <option value="2">2 - Poor</option>
+        <option value="1">1 - Terrible</option>
+      </select>
+    </label><br>
+    <label>Comment: <br>
+      <textarea name="comment" required style="width:100%; height:60px;"></textarea>
+    </label><br>
+    <button type="submit">Submit Review</button>
+  </form>
+{% endif %}
+
 <p style="margin-top:16px;"><a href="{{ url_for('offers') }}">Back to offers</a></p>
 {% endblock %}

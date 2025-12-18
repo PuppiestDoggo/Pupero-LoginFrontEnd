@@ -24,7 +24,7 @@
         <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">BUY XMR</span>
       {% endif %}
       <a href="{{ url_for('offer_detail', offer_id=o.id) }}" style="margin-left:6px;">{{ o.title }}</a>
-      — {{ o.price }} XMR — {{ o.status }} — owner: {{ o.seller_name or 'unknown' }}
+      — {{ o.price }} XMR — {{ o.status }} — owner: {% if o.seller_name %}<a href="{{ url_for('public_profile', username=o.seller_name) }}">{{ o.seller_name }}</a>{% else %}unknown{% endif %}
     </li>
   {% else %}
     <li>No offers found.</li>

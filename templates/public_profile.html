@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}{{ user.username }} - Profile{% endblock %}
+{% block content %}
+    <h1>{{ user.username }}</h1>
+    <p>Member since: {{ user.created_at.replace('T', ' ').split('.')[0] }}</p>
+    <p>Successful Trades: <strong>{{ user.successful_trades }}</strong></p>
+    
+    <hr>
+    <h2>Reviews</h2>
+    {% if reviews_summary and reviews_summary.reviews %}
+        <p>Average Rating: {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} reviews)</p>
+        <ul>
+        {% for r in reviews_summary.reviews %}
+            <li>
+                <strong>{{ r.rating }}/5</strong> - {{ r.comment }} 
+                <small>({{ r.created_at.replace('T', ' ').split('.')[0] if r.created_at else '' }})</small>
+                {% if is_admin %}
+                    <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
+                       <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No reviews yet.</p>
+    {% endif %}
+{% endblock %}

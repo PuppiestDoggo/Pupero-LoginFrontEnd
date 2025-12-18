@@ -16,7 +16,7 @@
 
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><th align="left">Status</th><td>{{ offer.status }}</td></tr>
-  <tr><th align="left">Offer owner</th><td>{{ offer.seller_name or 'unknown' }}</td></tr>
+  <tr><th align="left">Offer owner</th><td>{% if offer.seller_name %}<a href="{{ url_for('public_profile', username=offer.seller_name) }}">{{ offer.seller_name }}</a>{% else %}unknown{% endif %}</td></tr>
   <tr><th align="left">Side</th><td>{{ side|upper }} XMR</td></tr>
   <tr><th align="left">Crypto</th><td>{{ ad.crypto }}</td></tr>
   <tr><th align="left">Fiat</th><td>{{ ad.fiat }}</td></tr>
@@ -88,5 +88,26 @@
     xmr.addEventListener('input', onXmr);
   })();
 </script>
+{% endif %}
+
+<hr>
+<h3>Reviews of Offer Owner</h3>
+{% if reviews_summary and reviews_summary.reviews %}
+    <p>Average Rating: {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} reviews)</p>
+    <ul>
+    {% for r in reviews_summary.reviews %}
+        <li>
+            <strong>{{ r.rating }}/5</strong> - {{ r.comment }} 
+            <small>({{ r.created_at }})</small>
+            {% if is_admin %}
+                <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
+                   <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete</button>
+                </form>
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No reviews yet.</p>
 {% endif %}
 {% endblock %}
