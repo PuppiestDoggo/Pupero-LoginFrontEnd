@@ -12,7 +12,7 @@
         <ul>
         {% for r in reviews_summary.reviews %}
             <li>
-                <strong>{{ r.rating }}/5</strong> - {{ r.comment }} 
+                <strong>{{ r.rating }}/5</strong> by <strong>{{ r.reviewer_username }}</strong> - {{ r.comment }} 
                 <small>({{ r.created_at.replace('T', ' ').split('.')[0] if r.created_at else '' }})</small>
                 {% if is_admin %}
                     <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">

@@ -2,7 +2,7 @@
 {% block title %}Profile{% endblock %}
 {% block content %}
     <h1>Profile</h1>
-    <p>Username: {{ user.username or '(none)' }}</p>
+    <p>Username: {{ user.username or '(none)' }} {% if user.username %}<a href="{{ url_for('public_profile', username=user.username) }}">[View Public Profile]</a>{% endif %}</p>
     <p>Email: {{ user.email }}</p>
     <p>Role: {{ user.role }}</p>
     <p>Phrase: {{ user.phrase }}</p>
@@ -86,7 +86,7 @@
             <ul>
             {% for r in reviews_summary.reviews %}
                 <li>
-                    <strong>{{ r.rating }}/5</strong> - {{ r.comment }} 
+                    <strong>{{ r.rating }}/5</strong> by <strong>{{ r.reviewer_username }}</strong> - {{ r.comment }} 
                     <small>({{ r.created_at }})</small>
                     {% if user.role in ['admin', 'superadmin'] %}
                         <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">

@@ -20,6 +20,7 @@ import json
 import time
 import secrets
 import base64
+from datetime import datetime
 from urllib.parse import urlencode
 import os
 
@@ -228,6 +229,8 @@ def _humanize_schedule(s: dict) -> str:
 
 
 app = Flask(__name__)
+
+# Request logging middleware for ELK observability - merged into _log_request below
 # Secret key handling: use env if provided, otherwise generate an ephemeral dev key
 if SECRET_KEY:
     app.secret_key = SECRET_KEY
@@ -322,15 +325,32 @@ def _log_request(response):
     except Exception:
         pass
     try:
+        if request.path.startswith('/static') or request.path == '/favicon.ico':
+            return response
+
         duration = int((time.time() - getattr(request, "_start_time", time.time())) * 1000)
+        
+        # Try to extract user from token if available (from cache)
+        user = None
+        try:
+            token = request.cookies.get('access_token')
+            if token and token in PROFILE_CACHE:
+                user = PROFILE_CACHE[token].get('username')
+        except:
+            pass
+
         log = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "event": "http_request",
+            "service": "frontend",
             "method": request.method,
             "path": request.path,
             "status": response.status_code,
             "latency_ms": duration,
             "client": request.remote_addr,
             "has_token": bool(request.cookies.get('access_token')),
+            "user": user,
+            "user_agent": request.headers.get("User-Agent")
         }
         logger.info(json.dumps(log))
     except Exception:
@@ -403,7 +423,7 @@ def register():
             'password': request.form['password']
         }
         try:
-            response = requests.post(f'{BACKEND_URL}/register', json=data, timeout=10)
+            response = requests.post(f'{BACKEND_URL}/register', json=data, timeout=15)
         except Exception as e:
             flash(f'Registration failed: {e}', 'error')
             return render_template('register.html')
@@ -466,7 +486,7 @@ def login():
             else:
                 payload['username'] = identifier
             try:
-                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=10)
+                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=15)
             except Exception as e:
                 flash(f'Login failed: {e}', 'error')
                 return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
@@ -539,7 +559,7 @@ def login():
             else:
                 payload['username'] = identifier
             try:
-                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=10)
+                response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=15)
             except Exception as e:
                 flash(f'Login failed: {e}', 'error')
                 return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
@@ -1010,7 +1030,7 @@ def admin_balance():
         last_user_id = uid or None
         if uid and real_admin:
             try:
-                r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}", timeout=10)
+                r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}", timeout=15)
                 if r.status_code == 200:
                     bal = r.json()
                 else:
@@ -1029,7 +1049,7 @@ def admin_balance():
                 kind = request.form.get('kind') or 'fake'
                 op = request.form.get('op')
                 url = f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}/increase" if op == 'increase' else f"{TRANSACTIONS_SERVICE_URL}/balance/{uid}/decrease"
-                r = requests.post(url, json={"amount_xmr": amt, "kind": kind}, timeout=10)
+                r = requests.post(url, json={"amount_xmr": amt, "kind": kind}, timeout=15)
                 if r.status_code == 200:
                     bal = r.json()
                     flash('Balance updated', 'success')
@@ -1042,7 +1062,7 @@ def admin_balance():
     users = []
     if real_admin:
         try:
-            r = requests.get(f"{BACKEND_URL}/admin/users", headers=headers, timeout=10)
+            r = requests.get(f"{BACKEND_URL}/admin/users", headers=headers, timeout=15)
             if r.status_code == 200:
                 users = (r.json() or {}).get('users') or []
         except Exception:
@@ -1793,7 +1813,7 @@ def balances():
     bal = None
     monero_address = None
     try:
-        r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}", timeout=10)
+        r = requests.get(f"{TRANSACTIONS_SERVICE_URL}/balance/{user_id}", timeout=15)
         if r.status_code == 200:
             bal = r.json()
         else:
@@ -2157,6 +2177,7 @@ def _get_active_trade_id_for_user(user_id: int) -> str | None:
 def inject_trade_shortcuts():
     tid = None
     is_admin = False
+    current_username = ""
     try:
         # Admin mode comes from a simple cookie for debugging
         raw_admin = request.cookies.get('isadmin') or ''
@@ -2167,6 +2188,7 @@ def inject_trade_shortcuts():
         if request.cookies.get('access_token'):
             uid = _get_logged_in_user_id()
             uname = _get_logged_in_username()
+            current_username = uname or ""
             # Try quick mappings first
             tid = _get_active_trade_id_for_user(uid)
             if not tid:
@@ -2201,7 +2223,7 @@ def inject_trade_shortcuts():
                         continue
     except Exception:
         tid = None
-    return dict(active_trade_id=tid, is_admin=is_admin)
+    return dict(active_trade_id=tid, is_admin=is_admin, current_username=current_username)
 
 
 # Quick access to current active trade for the logged-in user

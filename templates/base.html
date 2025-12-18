@@ -50,6 +50,7 @@
               <a href="{{ url_for('create_ad') }}">Create Ad</a>
               <a href="{{ url_for('my_ads') }}">My Ads</a>
               <a href="{{ url_for('profile') }}">Profile</a>
+              {% if current_username %}<a href="{{ url_for('public_profile', username=current_username) }}">Public Profile</a>{% endif %}
               <a href="{{ url_for('balances') }}">Balances</a>
               <a href="{{ url_for('trades_list') }}">My Trades</a>
               <a href="{{ url_for('admin_page') }}">Admin</a>
