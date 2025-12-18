@@ -1859,21 +1859,15 @@ ACTIVE_TRADE_ID_BY_USERNAME: dict[str, str] = {}
 def _mx_username_for_user(user_id: int, username: str | None = None) -> str:
     """Return Matrix localpart for a user.
 
-    Preference order:
-    - sanitized username localpart if provided
-    - fallback to deterministic id-based localpart f"{MATRIX_USER_PREFIX}{user_id}"
+    IMPORTANT: Use a stable, deterministic mapping based on the immutable user_id
+    to avoid breaking Matrix accounts when application usernames are changed.
+
+    Historically we attempted to derive the Matrix localpart from the (mutable)
+    username, which caused chat failures after username changes. We now always
+    use the id-based mapping: f"{MATRIX_USER_PREFIX}{user_id}".
+    The `username` parameter is ignored and kept only for backward compatibility
+    with older call sites.
     """
-    # Prefer username when available
-    if username:
-        try:
-            raw = str(username).strip().lower()
-            allowed = set("abcdefghijklmnopqrstuvwxyz0123456789._=-")
-            local = ''.join(ch if ch in allowed else '_' for ch in raw).strip('_')
-            if local:
-                return local
-        except Exception:
-            pass
-    # Fallback to id-based mapping
     try:
         uid = int(user_id)
         if uid > 0:
@@ -2520,11 +2514,33 @@ ELEMENT_BACKEND_BASE = os.getenv("ELEMENT_BACKEND_BASE", "http://pupero-matrix-e
 # --- Reverse proxy for Monero Explorer to make it available under /explorer even without K8s ---
 EXPLORER_BACKEND_BASE = os.getenv("EXPLORER_BACKEND_BASE", "http://explore:8081").strip()
 
+@app.route('/chat', defaults={'path': ''})
+@app.route('/chat/<path:path>')
+def element_proxy(path):
+    target = f"{ELEMENT_BACKEND_BASE}/{path}"
+    if request.query_string:
+        target += '?' + request.query_string.decode()
+
+    upstream = requests.get(target, stream=True)
+    resp = Response(
+        upstream.iter_content(chunk_size=4096),
+        status=upstream.status_code,
+        content_type=upstream.headers.get('Content-Type'),
+    )
+
+    # Adjust HTML base for SPA routing
+    if 'text/html' in upstream.headers.get('Content-Type', ''):
+        html = upstream.text
+        if '<base ' not in html:
+            html = html.replace('<head>', '<head><base href="/element/">', 1)
+        resp.set_data(html.encode('utf-8'))
+
+    return resp
 
 @app.route('/element', defaults={'path': ''}, methods=['GET', 'HEAD'])
 @app.route('/element/', defaults={'path': ''}, methods=['GET', 'HEAD'])
 @app.route('/element/<path:path>', methods=['GET', 'HEAD'])
-def element_proxy(path: str):
+def element_proxy_webui(path: str):
     # Build upstream URL
     base = ELEMENT_BACKEND_BASE.rstrip('/')
     target = f"{base}/"
