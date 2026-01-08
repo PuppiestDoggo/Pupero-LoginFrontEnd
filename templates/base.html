@@ -4,32 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Pupero Frontend{% endblock %}</title>
-    <style>
-      :root {
-        --header-bg: #f8f9fb;
-        --header-border: #e5e7eb;
-        --link: #0d6efd;
-        --link-hover: #0b5ed7;
-      }
-      html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
-      a { color: var(--link); text-decoration: none; }
-      a:hover { color: var(--link-hover); text-decoration: underline; }
-      .site-header { position: sticky; top: 0; z-index: 100; background: var(--header-bg); border-bottom: 1px solid var(--header-border); }
-      .nav-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 16px; }
-      .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-      .brand img { height: 36px; width: auto; display: block; }
-      .brand-title { font-weight: 600; color: #111827; white-space: nowrap; }
-      .spacer { flex: 1; }
-      .nav-links { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
-      .flash { max-width: 1100px; margin: 8px auto; padding: 0 16px; }
-      .flash ul { margin: 8px 0; padding: 8px 12px; background: #fff; border: 1px solid var(--header-border); border-radius: 6px; }
-      .flash li { margin: 4px 0; }
-      main { max-width: 1100px; margin: 12px auto 32px; padding: 0 16px; }
-      @media (max-width: 640px) {
-        .brand-title { display: none; }
-        .brand img { height: 30px; }
-      }
-    </style>
+
+    <link rel="stylesheet" href="{{url_for('static', filename='css/base.css') }}">
+    {% block css %}{% endblock %}
 </head>
 <body>
     <header class="site-header">
