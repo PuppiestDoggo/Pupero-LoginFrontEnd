@@ -1,16 +1,24 @@
+/* =========================
+   THEME GLOBAL
+========================= */
 :root {
-    --bg-main: #0b1220;        /* fond principal */
-  --bg-soft: #0f172a;        /* fond contenu */
-  --bg-header: #070d1a;      /* header plus foncé */
-  --border-soft: #1e293b;
+  --bg-main: #0e1117;
+  --bg-header: #111827;
+  --bg-card: #161b22;
+
+  --primary: #4f8cff;
+  --primary-hover: #3b76e0;
 
   --text-main: #e5e7eb;
   --text-muted: #9ca3af;
 
-  --accent: #6366f1;         /* boutons / liens */
-  --accent-hover: #4f46e5;
+  --border-soft: rgba(255,255,255,0.08);
 }
 
+
+/* =========================
+   RESET + BODY
+========================= */
 * {
   box-sizing: border-box;
 }
@@ -18,55 +26,95 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu;
-  background: var(--bg);
-  color: var(--text);
 }
 
-a {
-  color: var(--link);
-  text-decoration: none;
+
+/* =========================
+   BODY
+========================= */
+body {
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
+  color: var(--text-main);
+
+  background:
+    radial-gradient(1200px 600px at 10% -20%, rgba(79,140,255,0.12), transparent 45%),
+    radial-gradient(800px 400px at 90% 10%, rgba(56,189,248,0.10), transparent 40%),
+    var(--bg-main);
 }
 
-a:hover {
-  text-decoration: underline;
-}
 
-/* Header */
+/* =========================
+   HEADER
+========================= */
 .site-header {
-  background: #fff;
-  border-bottom: 1px solid var(--border);
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .nav-inner {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: 14px 20px;
+
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
+
+/* =========================
+   BRAND
+========================= */
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-}
-
-.brand img {
-  height: 32px;
-}
-
-.nav-links {
-  margin-left: auto;
-  display: flex;
   gap: 14px;
 }
 
-/* Main content */
-main {
-  max-width: 1100px;
-  margin: 24px auto;
-  padding: 0 16px;
+.brand img {
+  height: 42px;
 }
+
+.brand-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+
+/* =========================
+   NAV LINKS
+========================= */
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.nav-links a:hover {
+  color: var(--primary);
+}
+
+
+/* =========================
+   MAIN CONTENT
+========================= */
+main {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 20px;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  .nav-inner {
+    flex-wrap: wrap;
+  }
+
+  .brand-title {
+    display: none;
+  }
+}
+
