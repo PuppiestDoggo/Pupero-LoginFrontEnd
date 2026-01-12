@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Community Directory{% endblock %}
+{% block content %}
+<h1>Community</h1>
+
+<form method="get" action="{{ url_for('community') }}" style="margin-bottom: 20px;">
+    <input type="text" name="q" placeholder="Search username..." value="{{ q }}" style="padding: 8px; width: 200px;">
+    <button type="submit" style="padding: 8px;">Search</button>
+</form>
+
+{% if users %}
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;" border="1" cellpadding="8">
+        <thead style="background: #f1f1f1;">
+            <tr>
+                <th style="text-align: left;">Username</th>
+                <th style="text-align: left;">Member Since</th>
+                <th style="text-align: left;">Successful Trades</th>
+                <th style="text-align: left;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>
+                    <strong>{{ u.username or ('User ' ~ u.id) }}</strong>
+                </td>
+                <td>
+                    {{ u.created_at.replace('T', ' ').split('.')[0] }}
+                </td>
+                <td>
+                    <strong>{{ u.successful_trades }}</strong>
+                </td>
+                <td>
+                    {% if u.username %}
+                        <a href="{{ url_for('public_profile', username=u.username) }}">View Profile</a>
+                    {% else %}
+                        <span style="color: #888;">No public profile</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="display: flex; gap: 10px;">
+        {% if page > 1 %}
+            <a href="{{ url_for('community', q=q, page=page-1) }}">Previous</a>
+        {% endif %}
+        {% if has_next %}
+            <a href="{{ url_for('community', q=q, page=page+1) }}">Next</a>
+        {% endif %}
+    </div>
+
+{% else %}
+    <p>No users found.</p>
+{% endif %}
+
+{% endblock %}
