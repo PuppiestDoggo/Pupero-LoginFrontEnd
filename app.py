@@ -2763,6 +2763,31 @@ def delete_review(review_id: int):
     return redirect(request.referrer or url_for('profile'))
 
 
+@app.route('/rates', methods=['GET'])
+def rates():
+    """Public page that shows cached XMR conversion rates and a simple converter."""
+    # Fetch cached prices from API Manager
+    prices = {}
+    updated_at = 0
+    next_update_at = 0
+    source = "unknown"
+    refresh_seconds = 0
+    err = None
+    try:
+        r = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=6)
+        if r.status_code == 200:
+            data = r.json() or {}
+            prices = data.get('prices') or {}
+            updated_at = int(data.get('updated_at') or 0)
+            next_update_at = int(data.get('next_update_at') or 0)
+            source = data.get('source') or 'unknown'
+            refresh_seconds = int(data.get('refresh_seconds') or 0)
+        else:
+            err = f"Price endpoint returned {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        err = str(e)
+
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
 
@@ -3215,29 +3240,7 @@ def _compute_price_per_xmr(ad: dict, market_base: float = 250.0) -> float:
         return float(market_base)
 
 
-@app.route('/rates', methods=['GET'])
-def rates():
-    """Public page that shows cached XMR conversion rates and a simple converter."""
-    # Fetch cached prices from API Manager
-    prices = {}
-    updated_at = 0
-    next_update_at = 0
-    source = "unknown"
-    refresh_seconds = 0
-    err = None
-    try:
-        r = requests.get(f"{OFFERS_SERVICE_URL}/price", timeout=6)
-        if r.status_code == 200:
-            data = r.json() or {}
-            prices = data.get('prices') or {}
-            updated_at = int(data.get('updated_at') or 0)
-            next_update_at = int(data.get('next_update_at') or 0)
-            source = data.get('source') or 'unknown'
-            refresh_seconds = int(data.get('refresh_seconds') or 0)
-        else:
-            err = f"Price endpoint returned {r.status_code}: {r.text[:120]}"
-    except Exception as e:
-        err = str(e)
+
 
     # Prepare human times
     def _fmt(ts: int) -> str:
@@ -3259,3 +3262,4 @@ def rates():
         'error': err,
     }
     return render_template('rates.html', **context)
+

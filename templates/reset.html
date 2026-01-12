@@ -1,9 +1,45 @@
 {% extends 'base.html' %}
-{% block title %}Reset Password{% endblock %}
+{% set hide_header = True %}
+{% block title %}Réinitialiser le mot de passe{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/login.css') }}">
+{% endblock %}
+
 {% block content %}
-    <h1>Reset Password</h1>
-    <form method="post">
-        <label>Email: <input type="email" name="email" required></label><br>
-        <input type="submit" value="Request Reset">
+<div class="login-grid">
+
+  <div class="login-left">
+    <img class="login-logo"
+         src="{{ url_for('static', filename='login_logo.png') }}"
+         alt="Pupero logo"
+         onerror="this.style.display='none'">
+  </div>
+
+  <div class="login-right">
+    <h1>Réinitialiser le mot de passe</h1>
+    <p class="login-info">
+      Saisissez votre adresse e-mail pour recevoir un lien de réinitialisation
+    </p>
+
+    <form method="post" class="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" required>
+      </div>
+
+      <div class="login-actions">
+        <button type="submit" class="btn-primary">
+          Envoyer le lien de réinitialisation
+        </button>
+      </div>
     </form>
+
+    <p class="login-note">
+      Vous vous souvenez de votre mot de passe ?
+      <a href="{{ url_for('login') }}">Login</a>
+    </p>
+  </div>
+
+</div>
 {% endblock %}

@@ -1,0 +1,120 @@
+/* =========================
+   THEME GLOBAL
+========================= */
+:root {
+  --bg-main: #0e1117;
+  --bg-header: #111827;
+  --bg-card: #161b22;
+
+  --primary: #4f8cff;
+  --primary-hover: #3b76e0;
+
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+
+  --border-soft: rgba(255,255,255,0.08);
+}
+
+
+/* =========================
+   RESET + BODY
+========================= */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+
+/* =========================
+   BODY
+========================= */
+body {
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
+  color: var(--text-main);
+
+  background:
+    radial-gradient(1200px 600px at 10% -20%, rgba(79,140,255,0.12), transparent 45%),
+    radial-gradient(800px 400px at 90% 10%, rgba(56,189,248,0.10), transparent 40%),
+    var(--bg-main);
+}
+
+
+/* =========================
+   HEADER
+========================= */
+.site-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 20px;
+
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+
+/* =========================
+   BRAND
+========================= */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand img {
+  height: 42px;
+}
+
+.brand-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+
+/* =========================
+   NAV LINKS
+========================= */
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.nav-links a:hover {
+  color: var(--primary);
+}
+
+
+/* =========================
+   MAIN CONTENT
+========================= */
+main {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 20px;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  .nav-inner {
+    flex-wrap: wrap;
+  }
+
+  .brand-title {
+    display: none;
+  }
+}
+

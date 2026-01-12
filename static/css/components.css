@@ -1,0 +1,9 @@
+@media (max-width: 768px) {
+  .nav-inner {
+    flex-wrap: wrap;
+  }
+
+  .brand-title {
+    display: none;
+  }
+}
