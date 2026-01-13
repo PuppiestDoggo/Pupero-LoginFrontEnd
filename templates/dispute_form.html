@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Open Trade Dispute - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Open a Trade Dispute</h1>
+    
+    {% if transaction %}
+    <div class="transaction-info">
+        <h3>Transaction Details</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="label">Transaction ID:</span>
+                <span class="value">#{{ transaction.id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Offer:</span>
+                <span class="value">{{ transaction.offer_title or 'Offer #' ~ transaction.offer_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Amount:</span>
+                <span class="value">{{ transaction.amount }} XMR</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Status:</span>
+                <span class="value badge badge-{{ transaction.status }}">{{ transaction.status }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Buyer:</span>
+                <span class="value">User #{{ transaction.buyer_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Seller:</span>
+                <span class="value">User #{{ transaction.seller_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Created:</span>
+                <span class="value">{{ transaction.created_at.strftime('%Y-%m-%d %H:%M') if transaction.created_at else 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="dispute-form-container">
+        <form id="dispute-form" method="POST" action="{{ url_for('submit_dispute') }}">
+            <input type="hidden" name="transaction_id" value="{{ transaction.id if transaction else '' }}">
+            <input type="hidden" name="offer_id" value="{{ transaction.offer_id if transaction else '' }}">
+
+            {% if not transaction %}
+            <!-- Manual transaction entry if not prefilled -->
+            <div class="form-group">
+                <label for="transaction_id_input">Transaction ID</label>
+                <input type="number" id="transaction_id_input" name="transaction_id" required
+                       placeholder="Enter the transaction ID">
+                <small>You can find this in your trades list</small>
+            </div>
+            {% endif %}
+
+            <!-- Category -->
+            <div class="form-group">
+                <label for="category">Dispute Category</label>
+                <select id="category" name="category" required>
+                    <option value="">Select category...</option>
+                    <option value="scam">Scam - Other party didn't fulfill their obligation</option>
+                    <option value="fraud">Fraud - Dishonest behavior or false claims</option>
+                    <option value="non_delivery">Non-Delivery - Product/service not received</option>
+                    <option value="wrong_item">Wrong Item - Received something different than agreed</option>
+                    <option value="quality_issue">Quality Issue - Product/service not as described</option>
+                    <option value="payment_issue">Payment Issue - Problem with payment</option>
+                    <option value="communication">Communication - Other party unresponsive</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">Describe the Issue</label>
+                <textarea id="description" name="description" rows="6" required
+                          placeholder="Please describe the issue in detail:
+- What happened?
+- What did you expect to happen?
+- What attempts have you made to resolve this with the other party?
+- Include any relevant dates, amounts, or details."
+                          minlength="10" maxlength="5000"></textarea>
+                <small>Minimum 10 characters, maximum 5000 characters. Be as detailed as possible.</small>
+            </div>
+
+            <!-- Evidence -->
+            <div class="form-group">
+                <label for="evidence">Evidence</label>
+                <textarea id="evidence" name="evidence" rows="4"
+                          placeholder="Provide links to evidence:
+- Screenshots of conversations
+- Transaction hashes
+- Photos of products received
+- Any other relevant documentation"></textarea>
+                <small>Include URLs to screenshots, images, or other supporting evidence</small>
+            </div>
+
+            <!-- What you want -->
+            <div class="form-group">
+                <label for="desired_outcome">Desired Outcome</label>
+                <select id="desired_outcome" name="desired_outcome">
+                    <option value="">Select desired outcome...</option>
+                    <option value="full_refund">Full Refund</option>
+                    <option value="partial_refund">Partial Refund</option>
+                    <option value="complete_transaction">Complete the Transaction</option>
+                    <option value="other">Other (explain in description)</option>
+                </select>
+            </div>
+
+            <!-- Notice -->
+            <div class="notice">
+                <strong>⚠️ Important Information:</strong>
+                <ul>
+                    <li>Opening a dispute will <strong>freeze the funds</strong> involved in this transaction until resolved.</li>
+                    <li>Both parties will be notified and can provide their statements.</li>
+                    <li>A moderator will review the case and make a decision.</li>
+                    <li>You can communicate with the other party and moderator through the dispute thread.</li>
+                    <li>False or frivolous disputes may result in action against your account.</li>
+                </ul>
+            </div>
+
+            <!-- Confirmation -->
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="confirm" required>
+                    I confirm that I have attempted to resolve this issue directly with the other party and the information provided is accurate.
+                </label>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Open Dispute</button>
+                <a href="{{ url_for('trades_list') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.transaction-info {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #333;
+}
+
+.transaction-info h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-item .label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.info-item .value {
+    font-weight: bold;
+    color: #fff;
+}
+
+.dispute-form-container {
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 30px;
+    border: 1px solid #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #ddd;
+}
+
+.form-group input[type="number"],
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #16213e;
+    color: #fff;
+    font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #f44336;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #888;
+    font-size: 12px;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-weight: normal !important;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-top: 3px;
+}
+
+.notice {
+    background: #3d2020;
+    border-left: 4px solid #f44336;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.notice ul {
+    margin: 10px 0 0 20px;
+    padding: 0;
+}
+
+.notice li {
+    margin-bottom: 5px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    font-size: 14px;
+}
+
+.btn-danger {
+    background: #f44336;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #d32f2f;
+}
+
+.btn-secondary {
+    background: #666;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #555;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.badge-pending { background: #ff9800; color: white; }
+.badge-completed { background: #4CAF50; color: white; }
+.badge-cancelled { background: #f44336; color: white; }
+.badge-disputed { background: #9c27b0; color: white; }
+</style>
+{% endblock %}

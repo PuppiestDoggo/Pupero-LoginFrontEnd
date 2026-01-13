@@ -14,6 +14,7 @@ from config import (
     MATRIX_SERVER_NAME,
     MATRIX_USER_PREFIX,
     MATRIX_DEFAULT_PASSWORD_SECRET,
+    MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS,
 )
 import logging
 import json
@@ -249,9 +250,19 @@ app.config.update(
 # JSON logger setup
 logger = logging.getLogger("pupero_frontend")
 if not logger.handlers:
-    handler = logging.StreamHandler()
     logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
+    # Stdout handler
+    stdout_handler = logging.StreamHandler()
+    logger.addHandler(stdout_handler)
+    # Optional File handler
+    log_file = os.getenv("LOG_FILE")
+    if log_file:
+        try:
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            file_handler = logging.FileHandler(log_file)
+            logger.addHandler(file_handler)
+        except Exception as e:
+            logger.error(f"Failed to setup file logging: {e}")
 
 # --- Auth token refresh helper ---
 
@@ -488,6 +499,7 @@ def login():
             try:
                 response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=15)
             except Exception as e:
+                logger.error(json.dumps({"event": "frontend_login_backend_error", "error": str(e), "identifier": identifier}))
                 flash(f'Login failed: {e}', 'error')
                 return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
 
@@ -496,6 +508,7 @@ def login():
                 try:
                     tokens = response.json()
                 except Exception:
+                    logger.error(json.dumps({"event": "frontend_login_json_error", "status": response.status_code, "identifier": identifier}))
                     flash('Login failed: Invalid response from server', 'error')
                     return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
                 # Set cookies then redirect to home to force full UI refresh (header)
@@ -513,7 +526,7 @@ def login():
                     resp.set_cookie('matrix_access_token', mtx, httponly=True, secure=secure_flag, samesite=samesite, max_age=max_age_access)
                 resp.set_cookie('remember', '1' if remember_flag else '0', secure=secure_flag, samesite=samesite, max_age=max_age_access)
                 try:
-                    logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
+                    logger.info(json.dumps({"event": "login_success_frontend", "remember": remember_flag, "client": request.remote_addr, "identifier": identifier}))
                 except Exception:
                     pass
                 flash('Login successful!', 'success')
@@ -745,6 +758,34 @@ def public_profile(username: str):
         pass
 
     return render_template('public_profile.html', user=user_info, reviews_summary=reviews_summary, is_admin=is_admin)
+
+
+@app.route('/community', methods=['GET'])
+def community():
+    q = request.args.get('q', '')
+    try:
+        page = int(request.args.get('page', 1))
+    except:
+        page = 1
+    if page < 1: page = 1
+    limit = 20
+    skip = (page - 1) * limit
+
+    users = []
+    try:
+        params = {'skip': skip, 'limit': limit}
+        if q:
+            params['q'] = q
+        r = requests.get(f"{BACKEND_URL}/users/directory", params=params, timeout=5)
+        if r.status_code == 200:
+            users = r.json() or []
+    except Exception as e:
+        flash(f"Failed to load directory: {e}", "error")
+
+    # Simple next/prev logic (assuming if we got 'limit' items, there might be next page)
+    has_next = (len(users) == limit)
+    
+    return render_template('community.html', users=users, q=q, page=page, has_next=has_next)
 
 
 # Enable TOTP
@@ -2141,6 +2182,147 @@ def _matrix_setup_for_trade(seller_id: int, buyer_id: int, initiator_id: int, tr
     return None
 
 
+def _matrix_archive_room(room_id: str, user_token: str = None) -> bool:
+    """
+    Archive a Matrix room by setting power levels so no one can send messages.
+    This effectively makes the room read-only while preserving chat history.
+    Returns True if successful, False otherwise.
+    """
+    if not MATRIX_ENABLED or not room_id:
+        return False
+    
+    # Get a token to use - try to get any valid token
+    tok = user_token
+    if not tok:
+        # Try to get token from current user
+        try:
+            uid = _get_logged_in_user_id()
+            if uid:
+                tok = _matrix_get_token_for_user(uid)
+        except Exception:
+            pass
+    
+    if not tok:
+        return False
+    
+    try:
+        # First, get current power levels
+        url = f"{MATRIX_HS_URL_BACKEND}/_matrix/client/v3/rooms/{room_id}/state/m.room.power_levels"
+        headers = {"Authorization": f"Bearer {tok}"}
+        r = requests.get(url, headers=headers, timeout=8)
+        
+        if r.status_code == 200:
+            power_levels = r.json() or {}
+        else:
+            # Use default power levels structure
+            power_levels = {
+                "events_default": 0,
+                "state_default": 50,
+                "users_default": 0,
+            }
+        
+        # Set events_default to 100 so only admins (power level 100) can send messages
+        # This effectively archives the room for regular users
+        power_levels["events_default"] = 100
+        
+        # Also set specific event types to require high power level
+        if "events" not in power_levels:
+            power_levels["events"] = {}
+        power_levels["events"]["m.room.message"] = 100
+        
+        # Send the updated power levels
+        r2 = requests.put(url, headers=headers, json=power_levels, timeout=8)
+        
+        if r2.status_code in (200, 201):
+            # Optionally send a notice that the room is archived
+            try:
+                _matrix_send_message(tok, room_id, "🔒 This trade chat has been archived. No new messages can be sent.")
+            except Exception:
+                pass
+            return True
+    except Exception as e:
+        logging.warning(f"Failed to archive Matrix room {room_id}: {e}")
+    
+    return False
+
+
+def _matrix_archive_trade_room(trade: dict) -> bool:
+    """Archive the Matrix room associated with a trade."""
+    if not trade:
+        return False
+    
+    matrix_info = trade.get('matrix')
+    if not matrix_info:
+        return False
+    
+    room_id = matrix_info.get('room_id')
+    if not room_id:
+        return False
+    
+    # Try to get a token from either participant
+    tok = None
+    seller_id = trade.get('seller_id')
+    buyer_id = trade.get('buyer_id')
+    
+    if seller_id:
+        tok = _matrix_get_token_for_user(int(seller_id))
+    if not tok and buyer_id:
+        tok = _matrix_get_token_for_user(int(buyer_id))
+    
+    return _matrix_archive_room(room_id, tok)
+
+
+# --- Background task for archiving old trade Matrix rooms ---
+import threading
+
+def _archive_old_trade_rooms_task():
+    """
+    Background task that periodically checks for completed trades older than
+    MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS and archives their Matrix rooms.
+    """
+    # Check every hour
+    CHECK_INTERVAL_SECONDS = 3600
+    
+    while True:
+        try:
+            time.sleep(CHECK_INTERVAL_SECONDS)
+            
+            if MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS <= 0:
+                continue  # Archiving disabled
+            
+            archive_threshold = time.time() - (MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS * 24 * 60 * 60)
+            
+            for trade_id, trade in list(TRADES.items()):
+                try:
+                    # Skip if already archived
+                    if trade.get('matrix_archived'):
+                        continue
+                    
+                    # Only archive completed trades
+                    if trade.get('status') != 'completed':
+                        continue
+                    
+                    # Check if trade is old enough
+                    completed_at = trade.get('completed_at') or trade.get('created_at') or 0
+                    if completed_at > archive_threshold:
+                        continue  # Not old enough yet
+                    
+                    # Archive the room
+                    if _matrix_archive_trade_room(trade):
+                        trade['matrix_archived'] = True
+                        trade['matrix_archived_at'] = int(time.time())
+                        TRADES[trade_id] = trade
+                        logging.info(f"Archived old trade room for trade {trade_id}")
+                except Exception as e:
+                    logging.warning(f"Error archiving trade {trade_id}: {e}")
+        except Exception as e:
+            logging.warning(f"Error in archive background task: {e}")
+
+# Start the background archiving thread (daemon so it exits with the main process)
+_archive_thread = threading.Thread(target=_archive_old_trade_rooms_task, daemon=True)
+_archive_thread.start()
+
+
 def _gen_trade_id() -> str:
     return secrets.token_urlsafe(8)
 
@@ -2443,6 +2625,14 @@ def trade_start(offer_id: str):
 
     # Create trade id early to tie reservation context
     trade_id = _gen_trade_id()
+    logger.info(json.dumps({
+        "event": "trade_initialization_start", 
+        "trade_id": trade_id, 
+        "offer_id": offer_id, 
+        "user_id": user_id,
+        "xmr_amount": xmr_amount,
+        "side": side
+    }))
 
     # Reserve seller's XMR immediately (escrow lock)
     try:
@@ -2657,6 +2847,13 @@ def trade_payment_received(trade_id: str):
             t['ledger_tx'] = res
             t['last_error'] = None
             TRADES[trade_id] = t
+            logger.info(json.dumps({
+                "event": "trade_completed_frontend", 
+                "trade_id": trade_id, 
+                "seller_id": t['seller_id'], 
+                "buyer_id": t['buyer_id'],
+                "amount_xmr": t['amount_xmr']
+            }))
             # Clear quick-access entries if they point to this completed trade
             sid = int(t['seller_id'])
             bid = int(t['buyer_id'])
@@ -2678,6 +2875,15 @@ def trade_payment_received(trade_id: str):
                 requests.post(f"{BACKEND_URL}/users/{int(t['seller_id'])}/increment_trades", timeout=5)
             except Exception as e:
                 logging.error(f"Failed to increment trade count: {e}")
+
+            # Archive the Matrix trade chat room (best-effort)
+            try:
+                if _matrix_archive_trade_room(t):
+                    t['matrix_archived'] = True
+                    t['matrix_archived_at'] = int(time.time())
+                    TRADES[trade_id] = t
+            except Exception as e:
+                logging.warning(f"Failed to archive Matrix room for trade {trade_id}: {e}")
 
             flash('Trade completed. XMR transferred (escrow committed).', 'success')
         else:
@@ -2728,14 +2934,17 @@ def submit_review(trade_id: str):
     try:
         r = requests.post(f"{BACKEND_URL}/reviews", json=payload, headers=headers, timeout=10)
         if r.status_code == 200:
+             logger.info(json.dumps({"event": "review_submitted_frontend", "trade_id": trade_id, "user_id": user_id, "rating": rating}))
              flash('Review submitted!', 'success')
         else:
              try:
                  err = r.json().get('detail', r.text)
              except:
                  err = r.text
+             logger.warning(json.dumps({"event": "review_failed_frontend", "status": r.status_code, "error": err, "trade_id": trade_id}))
              flash(f'Review failed: {err}', 'error')
     except Exception as e:
+        logger.error(json.dumps({"event": "review_error_frontend", "error": str(e), "trade_id": trade_id}))
         flash(f'Review failed: {e}', 'error')
         
     return redirect(url_for('trade_view', trade_id=trade_id))
@@ -2750,14 +2959,17 @@ def delete_review(review_id: int):
     try:
         r = requests.delete(f"{BACKEND_URL}/admin/reviews/{review_id}", headers=headers, timeout=5)
         if r.status_code == 200:
+            logger.info(json.dumps({"event": "review_deleted_frontend", "review_id": review_id}))
             flash('Review deleted.', 'success')
         else:
              try:
                  err = r.json().get('detail', r.text)
              except:
                  err = r.text
+             logger.warning(json.dumps({"event": "review_delete_failed_frontend", "status": r.status_code, "error": err, "review_id": review_id}))
              flash(f'Delete failed: {err}', 'error')
     except Exception as e:
+        logger.error(json.dumps({"event": "review_delete_error_frontend", "error": str(e), "review_id": review_id}))
         flash(f'Delete failed: {e}', 'error')
     
     return redirect(request.referrer or url_for('profile'))
@@ -2786,6 +2998,27 @@ def rates():
             err = f"Price endpoint returned {r.status_code}: {r.text[:120]}"
     except Exception as e:
         err = str(e)
+
+    # Prepare human times
+    def _fmt(ts: int) -> str:
+        try:
+            if ts:
+                return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
+        except Exception:
+            pass
+        return ''
+
+    context = {
+        'prices': prices,
+        'updated_at': updated_at,
+        'updated_human': _fmt(updated_at),
+        'next_update_at': next_update_at,
+        'next_update_human': _fmt(next_update_at),
+        'source': source,
+        'refresh_seconds': refresh_seconds,
+        'error': err,
+    }
+    return render_template('rates.html', **context)
 
 
 if __name__ == '__main__':
@@ -3043,8 +3276,19 @@ def _matrix_get_token_for_user(user_id: int) -> str | None:
             return cookie_tok
     except Exception:
         pass
-    # Do not auto-register/login on the frontend; rely on backend-provided token
-    # to ensure consistency with the requirement that Matrix password equals site password.
+    # Fallback: login to Matrix using deterministic credentials
+    # This ensures chat works even when the cookie is not set
+    try:
+        if user_id:
+            # Get username from profile cache or fetch it
+            uname = _get_logged_in_username()
+            localpart = _mx_username_for_user(int(user_id), uname)
+            password = _mx_password_for_user(int(user_id))
+            tok = _matrix_login(localpart, password)
+            if tok:
+                return tok
+    except Exception:
+        pass
     return None
 
 
@@ -3242,24 +3486,4 @@ def _compute_price_per_xmr(ad: dict, market_base: float = 250.0) -> float:
 
 
 
-    # Prepare human times
-    def _fmt(ts: int) -> str:
-        try:
-            if ts:
-                return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
-        except Exception:
-            pass
-        return ''
-
-    context = {
-        'prices': prices,
-        'updated_at': updated_at,
-        'updated_human': _fmt(updated_at),
-        'next_update_at': next_update_at,
-        'next_update_human': _fmt(next_update_at),
-        'source': source,
-        'refresh_seconds': refresh_seconds,
-        'error': err,
-    }
-    return render_template('rates.html', **context)
 

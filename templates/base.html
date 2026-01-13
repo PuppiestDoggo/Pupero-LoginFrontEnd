@@ -25,6 +25,7 @@
         <div class="spacer"></div>
         <nav class="nav-links" aria-label="Primary">
           <a href="{{ url_for('home') }}">Home</a>
+          <a href="{{ url_for('community') }}">Community</a>
           {% if request.cookies.get('access_token') %}
               <a href="{{ url_for('offers') }}">Offers</a>
               <a href="{{ url_for('rates') }}">Rates</a>

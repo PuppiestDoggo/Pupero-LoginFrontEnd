@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Report User/Content - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Submit a Report</h1>
+    
+    <div class="report-form-container">
+        <form id="report-form" method="POST" action="{{ url_for('submit_report') }}">
+            <!-- Report Type -->
+            <div class="form-group">
+                <label for="content_type">What are you reporting?</label>
+                <select id="content_type" name="content_type" required>
+                    <option value="">Select type...</option>
+                    <option value="user" {% if prefill_type == 'user' %}selected{% endif %}>User</option>
+                    <option value="offer" {% if prefill_type == 'offer' %}selected{% endif %}>Offer/Listing</option>
+                    <option value="review" {% if prefill_type == 'review' %}selected{% endif %}>Review</option>
+                    <option value="chat_message" {% if prefill_type == 'chat_message' %}selected{% endif %}>Chat Message</option>
+                    <option value="profile" {% if prefill_type == 'profile' %}selected{% endif %}>Profile Information</option>
+                    <option value="transaction" {% if prefill_type == 'transaction' %}selected{% endif %}>Transaction</option>
+                </select>
+            </div>
+
+            <!-- Reported User (if applicable) -->
+            <div class="form-group" id="user-field">
+                <label for="reported_user_id">User ID (if reporting a user)</label>
+                <input type="number" id="reported_user_id" name="reported_user_id" 
+                       value="{{ prefill_user_id or '' }}" placeholder="Enter user ID">
+                <small>You can find the user ID on their profile page</small>
+            </div>
+
+            <!-- Content ID (if applicable) -->
+            <div class="form-group" id="content-field">
+                <label for="content_id">Content ID (offer ID, review ID, etc.)</label>
+                <input type="text" id="content_id" name="content_id" 
+                       value="{{ prefill_content_id or '' }}" placeholder="Enter content ID">
+            </div>
+
+            <!-- Category -->
+            <div class="form-group">
+                <label for="category">Report Category</label>
+                <select id="category" name="category" required>
+                    <option value="">Select category...</option>
+                    <option value="scam">Scam / Fraud Attempt</option>
+                    <option value="harassment">Harassment / Bullying</option>
+                    <option value="spam">Spam / Unwanted Content</option>
+                    <option value="inappropriate_content">Inappropriate Content</option>
+                    <option value="fraud">Fraud / Dishonest Behavior</option>
+                    <option value="impersonation">Impersonation</option>
+                    <option value="illegal_activity">Illegal Activity</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="5" required
+                          placeholder="Please describe the issue in detail. Include any relevant information that will help moderators understand the situation."
+                          minlength="10" maxlength="2000"></textarea>
+                <small>Minimum 10 characters, maximum 2000 characters</small>
+            </div>
+
+            <!-- Evidence -->
+            <div class="form-group">
+                <label for="evidence">Evidence (optional)</label>
+                <textarea id="evidence" name="evidence" rows="3"
+                          placeholder="Provide links to screenshots, transaction IDs, or other evidence"></textarea>
+                <small>Include URLs to screenshots or other supporting evidence</small>
+            </div>
+
+            <!-- Notice -->
+            <div class="notice">
+                <strong>⚠️ Important:</strong>
+                <ul>
+                    <li>Reports are <strong>not anonymous</strong> - moderators can see who submitted the report.</li>
+                    <li>False reports may result in action against your account.</li>
+                    <li>You will be notified when your report is resolved.</li>
+                </ul>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Submit Report</button>
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.report-form-container {
+    background: #1a1a2e;
+    border-radius: 8px;
+    padding: 30px;
+    border: 1px solid #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #ddd;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #16213e;
+    color: #fff;
+    font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #888;
+    font-size: 12px;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.notice {
+    background: #2d2d44;
+    border-left: 4px solid #ff9800;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.notice ul {
+    margin: 10px 0 0 20px;
+    padding: 0;
+}
+
+.notice li {
+    margin-bottom: 5px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: #4CAF50;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #45a049;
+}
+
+.btn-secondary {
+    background: #666;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #555;
+}
+</style>
+
+<script>
+document.getElementById('content_type').addEventListener('change', function() {
+    const userField = document.getElementById('user-field');
+    const contentField = document.getElementById('content-field');
+    const value = this.value;
+    
+    // Show/hide fields based on content type
+    if (value === 'user' || value === 'profile') {
+        userField.style.display = 'block';
+        contentField.style.display = 'none';
+    } else if (value === 'offer' || value === 'review' || value === 'transaction') {
+        userField.style.display = 'block';
+        contentField.style.display = 'block';
+    } else if (value === 'chat_message') {
+        userField.style.display = 'block';
+        contentField.style.display = 'block';
+    } else {
+        userField.style.display = 'block';
+        contentField.style.display = 'block';
+    }
+});
+
+// Trigger change event on page load
+document.getElementById('content_type').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

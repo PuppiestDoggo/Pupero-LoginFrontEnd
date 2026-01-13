@@ -50,3 +50,5 @@ MATRIX_SERVER_NAME = os.getenv('MATRIX_SERVER_NAME', 'localhost')
 MATRIX_USER_PREFIX = os.getenv('MATRIX_USER_PREFIX', 'u')
 # Secret used to derive deterministic Matrix passwords for Pupero users
 MATRIX_DEFAULT_PASSWORD_SECRET = os.getenv('MATRIX_DEFAULT_PASSWORD_SECRET', 'change-me')
+# Number of days after which to archive trade chat rooms (0 = disabled)
+MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS = int(os.getenv('MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS', '7'))
