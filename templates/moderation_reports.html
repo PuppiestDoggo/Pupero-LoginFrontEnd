@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Reports - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Reports</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Filter -->
+    <div class="section">
+        <form method="get" class="inline-form">
+            <label for="status">Filter by status:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="in_review" {% if request.args.get('status') == 'in_review' %}selected{% endif %}>In Review</option>
+                <option value="resolved" {% if request.args.get('status') == 'resolved' %}selected{% endif %}>Resolved</option>
+                <option value="dismissed" {% if request.args.get('status') == 'dismissed' %}selected{% endif %}>Dismissed</option>
+            </select>
+        </form>
+    </div>
+    
+    <!-- Reports Table -->
+    <div class="section">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Target</th>
+                    <th>Reporter</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>#{{ report.id }}</td>
+                    <td><span class="badge">{{ report.report_type }}</span></td>
+                    <td>{{ report.target_type }} #{{ report.target_id }}</td>
+                    <td>User #{{ report.reporter_id }}</td>
+                    <td><span class="badge badge-{{ report.status }}">{{ report.status }}</span></td>
+                    <td>{{ report.created_at[:16] if report.created_at else 'N/A' }}</td>
+                    <td>
+                        <a href="{{ url_for('moderation_report_detail', report_id=report.id) }}" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No reports found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.inline-form { display: flex; gap: 10px; align-items: center; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-pending { background: #f0ad4e; color: #000; }
+.badge-in_review { background: #5bc0de; color: #000; }
+.badge-resolved { background: #5cb85c; color: #fff; }
+.badge-dismissed { background: #777; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.btn-sm { padding: 4px 8px; font-size: 0.9em; }
+</style>
+{% endblock %}

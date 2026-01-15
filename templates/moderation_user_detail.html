@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}User #{{ user.id }} - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>User Moderation: {{ user.username or 'User #' ~ user.id }}</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_users') }}" class="btn btn-secondary">← Back to User Search</a>
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+    </div>
+    
+    <!-- User Info -->
+    <div class="section card">
+        <h2>User Information</h2>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <label>User ID:</label>
+                <span>#{{ user.id }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Username:</label>
+                <span>{{ user.username or 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Email:</label>
+                <span>{{ user.email or 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Role:</label>
+                <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Status:</label>
+                {% if user.is_banned %}
+                <span class="badge badge-banned">Banned</span>
+                {% elif user.is_muted %}
+                <span class="badge badge-muted">Muted</span>
+                {% elif user.is_suspended %}
+                <span class="badge badge-suspended">Suspended</span>
+                {% else %}
+                <span class="badge badge-active">Active</span>
+                {% endif %}
+            </div>
+            <div class="detail-item">
+                <label>Created:</label>
+                <span>{{ user.created_at if user.created_at else 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Successful Trades:</label>
+                <span>{{ user.successful_trades or 0 }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Matrix ID:</label>
+                <span>{{ user.matrix_localpart or 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Moderation Actions -->
+    <div class="section card">
+        <h2>Take Action</h2>
+        <form method="post" action="{{ url_for('moderation_user_action', target_user_id=user.id) }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="action">Action:</label>
+                    <select name="action" id="action" required onchange="toggleDuration(this.value)">
+                        <option value="">Select action...</option>
+                        <option value="warn">Warn User</option>
+                        <option value="mute">Mute User</option>
+                        <option value="suspend">Suspend User</option>
+                        <option value="ban">Ban User</option>
+                        {% if user.is_banned or user.is_muted or user.is_suspended %}
+                        <option value="unban">Remove Ban/Mute/Suspension</option>
+                        {% endif %}
+                        {% if is_admin %}
+                        <option value="increase_balance">Increase Balance (Admin)</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="form-group" id="duration-group" style="display:none;">
+                    <label for="duration">Duration (hours):</label>
+                    <input type="number" name="duration" id="duration" min="1" placeholder="e.g., 24">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="reason">Reason:</label>
+                <textarea name="reason" id="reason" rows="3" placeholder="Provide a reason for this action..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-warning">Apply Action</button>
+        </form>
+    </div>
+    
+    <!-- Action History -->
+    <div class="section card">
+        <h2>Action History</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Moderator</th>
+                    <th>Reason</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in actions %}
+                <tr>
+                    <td><span class="badge badge-{{ action.action_type }}">{{ action.action_type }}</span></td>
+                    <td>User #{{ action.moderator_id }}</td>
+                    <td>{{ action.reason[:100] }}{% if action.reason|length > 100 %}...{% endif %}</td>
+                    <td>{{ action.created_at[:16] if action.created_at else 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center">No actions recorded</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Quick Links -->
+    <div class="section card">
+        <h2>Quick Links</h2>
+        <div class="button-group">
+            <a href="{{ url_for('public_profile', username=user.username) }}" class="btn btn-secondary" target="_blank">View Public Profile</a>
+            <a href="{{ url_for('submit_report') }}?target_type=user&target_id={{ user.id }}" class="btn btn-secondary">Create Report</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDuration(action) {
+    var durationGroup = document.getElementById('duration-group');
+    if (action === 'mute' || action === 'suspend') {
+        durationGroup.style.display = 'block';
+    } else {
+        durationGroup.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.card { background: #1a1a1a; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+.detail-item { display: flex; flex-direction: column; gap: 5px; }
+.detail-item label { font-weight: bold; color: #888; }
+.form-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 200px; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; }
+.form-group select, .form-group textarea, .form-group input { width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; display: inline-block; }
+.badge-user { background: #5bc0de; color: #000; }
+.badge-admin { background: #d9534f; color: #fff; }
+.badge-moderator { background: #f0ad4e; color: #000; }
+.badge-active { background: #5cb85c; color: #fff; }
+.badge-banned, .badge-ban { background: #d9534f; color: #fff; }
+.badge-muted, .badge-mute { background: #f0ad4e; color: #000; }
+.badge-suspended, .badge-suspend { background: #777; color: #fff; }
+.badge-warn { background: #f0ad4e; color: #000; }
+.badge-unban { background: #5cb85c; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-warning { background: #f0ad4e; color: #000; border: none; }
+</style>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Moderation Queue - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Moderation Queue</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Queue Table -->
+    <div class="section">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Item ID</th>
+                    <th>Priority</th>
+                    <th>Assigned To</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in queue_items %}
+                <tr>
+                    <td>#{{ item.id }}</td>
+                    <td><span class="badge badge-{{ item.item_type }}">{{ item.item_type }}</span></td>
+                    <td>#{{ item.item_id }}</td>
+                    <td>
+                        {% if item.priority == 'high' %}
+                        <span class="badge badge-high">High</span>
+                        {% elif item.priority == 'medium' %}
+                        <span class="badge badge-medium">Medium</span>
+                        {% else %}
+                        <span class="badge badge-low">Low</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ 'User #' ~ item.assigned_to if item.assigned_to else 'Unassigned' }}</td>
+                    <td>{{ item.created_at[:16] if item.created_at else 'N/A' }}</td>
+                    <td>
+                        {% if not item.assigned_to %}
+                        <button class="btn btn-sm btn-primary" onclick="claimItem({{ item.id }})">Claim</button>
+                        {% endif %}
+                        <a href="{{ url_for('moderation_view_item', item_type=item.item_type, item_id=item.item_id) }}" class="btn btn-sm btn-secondary">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No items in queue</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function claimItem(itemId) {
+    fetch('/moderation/queue/' + itemId + '/claim', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to claim item: ' + (data.detail || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+
+<style>
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-report { background: #5bc0de; color: #000; }
+.badge-dispute { background: #f0ad4e; color: #000; }
+.badge-appeal { background: #d9534f; color: #fff; }
+.badge-high { background: #d9534f; color: #fff; }
+.badge-medium { background: #f0ad4e; color: #000; }
+.badge-low { background: #5cb85c; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.btn-sm { padding: 4px 8px; font-size: 0.9em; }
+</style>
+{% endblock %}

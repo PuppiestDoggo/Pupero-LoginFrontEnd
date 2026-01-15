@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Disputes - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Trade Disputes</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Filter -->
+    <div class="section">
+        <form method="get" class="inline-form">
+            <label for="status">Filter by status:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="open" {% if request.args.get('status') == 'open' %}selected{% endif %}>Open</option>
+                <option value="in_review" {% if request.args.get('status') == 'in_review' %}selected{% endif %}>In Review</option>
+                <option value="resolved" {% if request.args.get('status') == 'resolved' %}selected{% endif %}>Resolved</option>
+                <option value="closed" {% if request.args.get('status') == 'closed' %}selected{% endif %}>Closed</option>
+            </select>
+        </form>
+    </div>
+    
+    <!-- Disputes Table -->
+    <div class="section">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Trade ID</th>
+                    <th>Initiator</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dispute in disputes %}
+                <tr>
+                    <td>#{{ dispute.id }}</td>
+                    <td>{{ dispute.trade_id }}</td>
+                    <td>User #{{ dispute.initiator_id }}</td>
+                    <td>{{ dispute.reason[:50] }}{% if dispute.reason|length > 50 %}...{% endif %}</td>
+                    <td><span class="badge badge-{{ dispute.status }}">{{ dispute.status }}</span></td>
+                    <td>{{ dispute.created_at[:16] if dispute.created_at else 'N/A' }}</td>
+                    <td>
+                        <a href="{{ url_for('moderation_dispute_detail', dispute_id=dispute.id) }}" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No disputes found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.inline-form { display: flex; gap: 10px; align-items: center; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-open { background: #d9534f; color: #fff; }
+.badge-in_review { background: #5bc0de; color: #000; }
+.badge-resolved { background: #5cb85c; color: #fff; }
+.badge-closed { background: #777; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.btn-sm { padding: 4px 8px; font-size: 0.9em; }
+</style>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}User Search - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>User Search</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Search Form -->
+    <div class="section card">
+        <form method="get" class="search-form">
+            <div class="form-group">
+                <label for="q">Search by username, email, or user ID:</label>
+                <div class="search-input-group">
+                    <input type="text" name="q" id="q" value="{{ q }}" placeholder="Enter username, email, or ID...">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Results -->
+    {% if q %}
+    <div class="section">
+        <h2>Search Results</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>#{{ user.id }}</td>
+                    <td>{{ user.username or 'N/A' }}</td>
+                    <td>{{ user.email or 'N/A' }}</td>
+                    <td><span class="badge badge-{{ user.role }}">{{ user.role }}</span></td>
+                    <td>
+                        {% if user.is_banned %}
+                        <span class="badge badge-banned">Banned</span>
+                        {% elif user.is_muted %}
+                        <span class="badge badge-muted">Muted</span>
+                        {% elif user.is_suspended %}
+                        <span class="badge badge-suspended">Suspended</span>
+                        {% else %}
+                        <span class="badge badge-active">Active</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
+                    <td>
+                        <a href="{{ url_for('moderation_user_detail', target_user_id=user.id) }}" class="btn btn-sm btn-primary">View</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No users found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card { background: #1a1a1a; padding: 20px; border-radius: 8px; }
+.search-form .form-group { margin-bottom: 0; }
+.search-input-group { display: flex; gap: 10px; }
+.search-input-group input { flex: 1; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-user { background: #5bc0de; color: #000; }
+.badge-admin { background: #d9534f; color: #fff; }
+.badge-moderator { background: #f0ad4e; color: #000; }
+.badge-active { background: #5cb85c; color: #fff; }
+.badge-banned { background: #d9534f; color: #fff; }
+.badge-muted { background: #f0ad4e; color: #000; }
+.badge-suspended { background: #777; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.btn-sm { padding: 4px 8px; font-size: 0.9em; }
+</style>
+{% endblock %}

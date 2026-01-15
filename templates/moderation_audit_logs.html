@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Audit Logs</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">&larr; Back to Dashboard</a>
+    </div>
+    
+    <!-- Logs Table -->
+    <div class="section">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Moderator</th>
+                    <th>Reason</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>#{{ log.id }}</td>
+                    <td><span class="badge badge-{{ log.action_type }}">{{ log.action_type }}</span></td>
+                    <td>
+                        {% if log.target_type == 'user' %}
+                        <a href="{{ url_for('moderation_user_detail', target_user_id=log.target_id) }}">User #{{ log.target_id }}</a>
+                        {% elif log.target_type == 'report' %}
+                        <a href="{{ url_for('moderation_report_detail', report_id=log.target_id) }}">Report #{{ log.target_id }}</a>
+                        {% elif log.target_type == 'dispute' %}
+                        <a href="{{ url_for('moderation_dispute_detail', dispute_id=log.target_id) }}">Dispute #{{ log.target_id }}</a>
+                        {% else %}
+                        {{ log.target_type }} #{{ log.target_id }}
+                        {% endif %}
+                    </td>
+                    <td>User #{{ log.moderator_id }}</td>
+                    <td title="{{ log.reason }}">{{ (log.reason or 'N/A')[:50] }}{% if log.reason and (log.reason | length) > 50 %}...{% endif %}</td>
+                    <td>{{ log.created_at[:16] if log.created_at else 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center">No audit logs found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="section pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="btn btn-secondary">&larr; Previous</a>
+        {% endif %}
+        <span class="page-info">Page {{ page }}</span>
+        {% if logs %}
+        <a href="?page={{ page + 1 }}" class="btn btn-secondary">Next &rarr;</a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-warn { background: #f0ad4e; color: #000; }
+.badge-mute { background: #5bc0de; color: #000; }
+.badge-suspend { background: #777; color: #fff; }
+.badge-ban { background: #d9534f; color: #fff; }
+.badge-unban { background: #5cb85c; color: #fff; }
+.badge-resolve { background: #5cb85c; color: #fff; }
+.badge-dismiss { background: #777; color: #fff; }
+.badge-increase_balance { background: #5bc0de; color: #000; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.data-table a { color: #5bc0de; }
+.pagination { display: flex; gap: 20px; align-items: center; justify-content: center; }
+.page-info { color: #888; }
+</style>
+{% endblock %}

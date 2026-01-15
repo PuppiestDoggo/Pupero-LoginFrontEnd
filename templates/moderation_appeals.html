@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Appeals - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Appeals</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    
+    <!-- Filter -->
+    <div class="section">
+        <form method="get" class="inline-form">
+            <label for="status">Filter by status:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="">All</option>
+                <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="in_review" {% if request.args.get('status') == 'in_review' %}selected{% endif %}>In Review</option>
+                <option value="approved" {% if request.args.get('status') == 'approved' %}selected{% endif %}>Approved</option>
+                <option value="denied" {% if request.args.get('status') == 'denied' %}selected{% endif %}>Denied</option>
+            </select>
+        </form>
+    </div>
+    
+    <!-- Appeals Table -->
+    <div class="section">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Action Appealed</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for appeal in appeals %}
+                <tr>
+                    <td>#{{ appeal.id }}</td>
+                    <td>User #{{ appeal.user_id }}</td>
+                    <td>{{ appeal.action_type }} #{{ appeal.action_id }}</td>
+                    <td>{{ appeal.reason[:50] }}{% if appeal.reason|length > 50 %}...{% endif %}</td>
+                    <td><span class="badge badge-{{ appeal.status }}">{{ appeal.status }}</span></td>
+                    <td>{{ appeal.created_at[:16] if appeal.created_at else 'N/A' }}</td>
+                    <td>
+                        {% if appeal.status in ['pending', 'in_review'] %}
+                        <form method="post" action="{{ url_for('moderation_resolve_appeal', appeal_id=appeal.id) }}" style="display:inline;">
+                            <input type="hidden" name="resolution" value="approved">
+                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                        </form>
+                        <form method="post" action="{{ url_for('moderation_resolve_appeal', appeal_id=appeal.id) }}" style="display:inline;">
+                            <input type="hidden" name="resolution" value="denied">
+                            <button type="submit" class="btn btn-sm btn-danger">Deny</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">Resolved</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No appeals found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.inline-form { display: flex; gap: 10px; align-items: center; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; }
+.badge-pending { background: #f0ad4e; color: #000; }
+.badge-in_review { background: #5bc0de; color: #000; }
+.badge-approved { background: #5cb85c; color: #fff; }
+.badge-denied { background: #d9534f; color: #fff; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 10px; border: 1px solid #444; text-align: left; }
+.data-table th { background: #333; }
+.btn-sm { padding: 4px 8px; font-size: 0.9em; }
+.btn-success { background: #5cb85c; color: #fff; border: none; cursor: pointer; }
+.btn-danger { background: #d9534f; color: #fff; border: none; cursor: pointer; }
+.text-muted { color: #888; }
+</style>
+{% endblock %}

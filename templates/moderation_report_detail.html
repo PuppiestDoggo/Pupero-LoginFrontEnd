@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }} - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Report #{{ report.id }}</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_reports') }}" class="btn btn-secondary">← Back to Reports</a>
+    </div>
+    
+    <!-- Report Details -->
+    <div class="section card">
+        <h2>Report Details</h2>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <label>Report Type:</label>
+                <span class="badge">{{ report.report_type }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Target:</label>
+                <span>{{ report.target_type }} #{{ report.target_id }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Reporter:</label>
+                <span>User #{{ report.reporter_id }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Status:</label>
+                <span class="badge badge-{{ report.status }}">{{ report.status }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Created:</label>
+                <span>{{ report.created_at if report.created_at else 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Updated:</label>
+                <span>{{ report.updated_at if report.updated_at else 'N/A' }}</span>
+            </div>
+        </div>
+        
+        <div class="detail-item full-width">
+            <label>Description:</label>
+            <p class="description-box">{{ report.description or 'No description provided' }}</p>
+        </div>
+        
+        {% if report.resolution_notes %}
+        <div class="detail-item full-width">
+            <label>Resolution Notes:</label>
+            <p class="description-box">{{ report.resolution_notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Actions -->
+    {% if report.status in ['pending', 'in_review'] %}
+    <div class="section card">
+        <h2>Take Action</h2>
+        <form method="post" action="{{ url_for('moderation_resolve_report', report_id=report.id) }}">
+            <div class="form-group">
+                <label for="resolution">Resolution:</label>
+                <select name="resolution" id="resolution" required>
+                    <option value="resolved">Resolved - Action Taken</option>
+                    <option value="dismissed">Dismissed - No Action Needed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="notes">Notes:</label>
+                <textarea name="notes" id="notes" rows="4" placeholder="Describe the action taken or reason for dismissal..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Resolution</button>
+        </form>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions on Target -->
+    <div class="section card">
+        <h2>Quick Actions</h2>
+        <div class="button-group">
+            {% if report.target_type == 'user' %}
+            <a href="{{ url_for('moderation_user_detail', target_user_id=report.target_id) }}" class="btn btn-secondary">View User Profile</a>
+            {% endif %}
+            <a href="{{ url_for('public_profile', username=report.target_id) }}" class="btn btn-secondary" target="_blank">View Public Profile</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.card { background: #1a1a1a; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+.detail-item { display: flex; flex-direction: column; gap: 5px; }
+.detail-item label { font-weight: bold; color: #888; }
+.detail-item.full-width { grid-column: 1 / -1; }
+.description-box { background: #222; padding: 15px; border-radius: 4px; white-space: pre-wrap; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; }
+.form-group select, .form-group textarea { width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; display: inline-block; }
+.badge-pending { background: #f0ad4e; color: #000; }
+.badge-in_review { background: #5bc0de; color: #000; }
+.badge-resolved { background: #5cb85c; color: #fff; }
+.badge-dismissed { background: #777; color: #fff; }
+.button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+{% endblock %}

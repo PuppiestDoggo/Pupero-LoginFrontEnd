@@ -52,3 +52,6 @@ MATRIX_USER_PREFIX = os.getenv('MATRIX_USER_PREFIX', 'u')
 MATRIX_DEFAULT_PASSWORD_SECRET = os.getenv('MATRIX_DEFAULT_PASSWORD_SECRET', 'change-me')
 # Number of days after which to archive trade chat rooms (0 = disabled)
 MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS = int(os.getenv('MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS', '7'))
+
+# Moderation service URL
+MODERATION_SERVICE_URL = os.getenv('MODERATION_SERVICE_URL', 'http://pupero-moderation:8020').rstrip('/')

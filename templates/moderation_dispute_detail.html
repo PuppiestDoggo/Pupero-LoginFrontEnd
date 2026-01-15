@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Dispute #{{ dispute.id }} - Moderation - Pupero{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Dispute #{{ dispute.id }}</h1>
+    
+    <div class="section">
+        <a href="{{ url_for('moderation_disputes') }}" class="btn btn-secondary">← Back to Disputes</a>
+    </div>
+    
+    <!-- Dispute Details -->
+    <div class="section card">
+        <h2>Dispute Details</h2>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <label>Trade ID:</label>
+                <span>{{ dispute.trade_id }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Initiator:</label>
+                <span>User #{{ dispute.initiator_id }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Buyer:</label>
+                <span>User #{{ dispute.buyer_id if dispute.buyer_id else 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Seller:</label>
+                <span>User #{{ dispute.seller_id if dispute.seller_id else 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Amount:</label>
+                <span>{{ dispute.amount if dispute.amount else 'N/A' }} XMR</span>
+            </div>
+            <div class="detail-item">
+                <label>Status:</label>
+                <span class="badge badge-{{ dispute.status }}">{{ dispute.status }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Created:</label>
+                <span>{{ dispute.created_at if dispute.created_at else 'N/A' }}</span>
+            </div>
+            <div class="detail-item">
+                <label>Updated:</label>
+                <span>{{ dispute.updated_at if dispute.updated_at else 'N/A' }}</span>
+            </div>
+        </div>
+        
+        <div class="detail-item full-width">
+            <label>Reason:</label>
+            <p class="description-box">{{ dispute.reason or 'No reason provided' }}</p>
+        </div>
+        
+        <div class="detail-item full-width">
+            <label>Description:</label>
+            <p class="description-box">{{ dispute.description or 'No description provided' }}</p>
+        </div>
+        
+        {% if dispute.resolution_notes %}
+        <div class="detail-item full-width">
+            <label>Resolution Notes:</label>
+            <p class="description-box">{{ dispute.resolution_notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Resolve Dispute -->
+    {% if dispute.status in ['open', 'in_review'] %}
+    <div class="section card">
+        <h2>Resolve Dispute</h2>
+        <form method="post" action="{{ url_for('moderation_resolve_dispute', dispute_id=dispute.id) }}">
+            <div class="form-group">
+                <label for="resolution">Resolution:</label>
+                <select name="resolution" id="resolution" required>
+                    <option value="resolved_buyer">Resolved in favor of Buyer</option>
+                    <option value="resolved_seller">Resolved in favor of Seller</option>
+                    <option value="resolved_split">Resolved - Split funds</option>
+                    <option value="closed">Closed - No action</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="winner_id">Winner User ID (optional):</label>
+                <input type="number" name="winner_id" id="winner_id" placeholder="User ID of the winner">
+            </div>
+            <div class="form-group">
+                <label for="notes">Resolution Notes:</label>
+                <textarea name="notes" id="notes" rows="4" placeholder="Describe the resolution and reasoning..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Resolution</button>
+        </form>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div class="section card">
+        <h2>Quick Actions</h2>
+        <div class="button-group">
+            {% if dispute.buyer_id %}
+            <a href="{{ url_for('moderation_user_detail', target_user_id=dispute.buyer_id) }}" class="btn btn-secondary">View Buyer</a>
+            {% endif %}
+            {% if dispute.seller_id %}
+            <a href="{{ url_for('moderation_user_detail', target_user_id=dispute.seller_id) }}" class="btn btn-secondary">View Seller</a>
+            {% endif %}
+            <a href="{{ url_for('trade_detail', trade_id=dispute.trade_id) }}" class="btn btn-secondary" target="_blank">View Trade</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.card { background: #1a1a1a; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+.detail-item { display: flex; flex-direction: column; gap: 5px; }
+.detail-item label { font-weight: bold; color: #888; }
+.detail-item.full-width { grid-column: 1 / -1; }
+.description-box { background: #222; padding: 15px; border-radius: 4px; white-space: pre-wrap; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; }
+.form-group select, .form-group textarea, .form-group input { width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.badge { padding: 2px 8px; border-radius: 4px; background: #444; display: inline-block; }
+.badge-open { background: #d9534f; color: #fff; }
+.badge-in_review { background: #5bc0de; color: #000; }
+.badge-resolved, .badge-resolved_buyer, .badge-resolved_seller, .badge-resolved_split { background: #5cb85c; color: #fff; }
+.badge-closed { background: #777; color: #fff; }
+.button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+{% endblock %}

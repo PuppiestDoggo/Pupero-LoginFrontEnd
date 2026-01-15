@@ -15,6 +15,7 @@ from config import (
     MATRIX_USER_PREFIX,
     MATRIX_DEFAULT_PASSWORD_SECRET,
     MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS,
+    MODERATION_SERVICE_URL,
 )
 import logging
 import json
@@ -3482,6 +3483,543 @@ def _compute_price_per_xmr(ad: dict, market_base: float = 250.0) -> float:
         return float(base) * (1.0 + float(margin) / 100.0)
     except Exception:
         return float(market_base)
+
+
+# ============================================================================
+# MODERATION ROUTES
+# ============================================================================
+
+def _get_moderation_headers():
+    """Get authorization headers for moderation service calls."""
+    token = request.cookies.get('access_token')
+    if not token:
+        return None
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _check_moderator_access():
+    """Check if current user is admin or moderator. Returns (is_allowed, user_role, user_id)."""
+    headers = get_auth_headers()
+    if not headers:
+        return False, None, None
+    try:
+        resp = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=5)
+        if resp.status_code == 200:
+            u = resp.json() or {}
+            role = u.get('role', 'user')
+            user_id = u.get('id')
+            if role in ('admin', 'superadmin', 'moderator'):
+                return True, role, user_id
+    except Exception:
+        pass
+    return False, None, None
+
+
+@app.route('/moderation')
+def moderation_dashboard():
+    """Main moderation dashboard."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    is_admin = role in ('admin', 'superadmin')
+    stats = {}
+    queue_items = []
+    recent_actions = []
+    
+    headers = _get_moderation_headers()
+    
+    # Fetch stats
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/stats', headers=headers, timeout=5)
+        if r.status_code == 200:
+            stats = r.json() or {}
+    except Exception as e:
+        app.logger.warning(f"Failed to fetch moderation stats: {e}")
+    
+    # Fetch queue items
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/queue', headers=headers, params={'limit': 10}, timeout=5)
+        if r.status_code == 200:
+            queue_items = r.json() or []
+    except Exception as e:
+        app.logger.warning(f"Failed to fetch moderation queue: {e}")
+    
+    # Fetch recent actions
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/audit-log', headers=headers, params={'limit': 10}, timeout=5)
+        if r.status_code == 200:
+            recent_actions = r.json() or []
+    except Exception as e:
+        app.logger.warning(f"Failed to fetch recent actions: {e}")
+    
+    return render_template('moderation_dashboard.html', 
+                           stats=stats, 
+                           queue_items=queue_items, 
+                           recent_actions=recent_actions,
+                           is_admin=is_admin)
+
+
+@app.route('/moderation/reports')
+def moderation_reports():
+    """View all reports."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    reports = []
+    
+    try:
+        status = request.args.get('status', '')
+        params = {'limit': 50}
+        if status:
+            params['status'] = status
+        r = requests.get(f'{MODERATION_SERVICE_URL}/reports', headers=headers, params=params, timeout=5)
+        if r.status_code == 200:
+            reports = r.json() or []
+    except Exception as e:
+        flash(f'Failed to fetch reports: {e}', 'error')
+    
+    return render_template('moderation_reports.html', reports=reports, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/reports/<int:report_id>')
+def moderation_report_detail(report_id):
+    """View single report detail."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    report = None
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/reports/{report_id}', headers=headers, timeout=5)
+        if r.status_code == 200:
+            report = r.json()
+        else:
+            flash('Report not found.', 'error')
+            return redirect(url_for('moderation_reports'))
+    except Exception as e:
+        flash(f'Failed to fetch report: {e}', 'error')
+        return redirect(url_for('moderation_reports'))
+    
+    return render_template('moderation_report_detail.html', report=report, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/reports/<int:report_id>/resolve', methods=['POST'])
+def moderation_resolve_report(report_id):
+    """Resolve a report."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    resolution = request.form.get('resolution', 'resolved')
+    notes = request.form.get('notes', '')
+    
+    try:
+        r = requests.post(f'{MODERATION_SERVICE_URL}/reports/{report_id}/resolve', 
+                          headers=headers, 
+                          json={'resolution': resolution, 'notes': notes}, 
+                          timeout=10)
+        if r.status_code == 200:
+            flash('Report resolved successfully.', 'success')
+        else:
+            detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+            flash(f'Failed to resolve report: {detail}', 'error')
+    except Exception as e:
+        flash(f'Failed to resolve report: {e}', 'error')
+    
+    return redirect(url_for('moderation_reports'))
+
+
+@app.route('/moderation/disputes')
+def moderation_disputes():
+    """View all disputes."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    disputes = []
+    
+    try:
+        status = request.args.get('status', '')
+        params = {'limit': 50}
+        if status:
+            params['status'] = status
+        r = requests.get(f'{MODERATION_SERVICE_URL}/disputes', headers=headers, params=params, timeout=5)
+        if r.status_code == 200:
+            disputes = r.json() or []
+    except Exception as e:
+        flash(f'Failed to fetch disputes: {e}', 'error')
+    
+    return render_template('moderation_disputes.html', disputes=disputes, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/disputes/<int:dispute_id>')
+def moderation_dispute_detail(dispute_id):
+    """View single dispute detail."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    dispute = None
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/disputes/{dispute_id}', headers=headers, timeout=5)
+        if r.status_code == 200:
+            dispute = r.json()
+        else:
+            flash('Dispute not found.', 'error')
+            return redirect(url_for('moderation_disputes'))
+    except Exception as e:
+        flash(f'Failed to fetch dispute: {e}', 'error')
+        return redirect(url_for('moderation_disputes'))
+    
+    return render_template('moderation_dispute_detail.html', dispute=dispute, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/disputes/<int:dispute_id>/resolve', methods=['POST'])
+def moderation_resolve_dispute(dispute_id):
+    """Resolve a dispute."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    resolution = request.form.get('resolution', 'resolved')
+    winner_id = request.form.get('winner_id')
+    notes = request.form.get('notes', '')
+    
+    payload = {'resolution': resolution, 'notes': notes}
+    if winner_id:
+        payload['winner_id'] = int(winner_id)
+    
+    try:
+        r = requests.post(f'{MODERATION_SERVICE_URL}/disputes/{dispute_id}/resolve', 
+                          headers=headers, 
+                          json=payload, 
+                          timeout=10)
+        if r.status_code == 200:
+            flash('Dispute resolved successfully.', 'success')
+        else:
+            detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+            flash(f'Failed to resolve dispute: {detail}', 'error')
+    except Exception as e:
+        flash(f'Failed to resolve dispute: {e}', 'error')
+    
+    return redirect(url_for('moderation_disputes'))
+
+
+@app.route('/moderation/appeals')
+def moderation_appeals():
+    """View all appeals."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    appeals = []
+    
+    try:
+        status = request.args.get('status', '')
+        params = {'limit': 50}
+        if status:
+            params['status'] = status
+        r = requests.get(f'{MODERATION_SERVICE_URL}/appeals', headers=headers, params=params, timeout=5)
+        if r.status_code == 200:
+            appeals = r.json() or []
+    except Exception as e:
+        flash(f'Failed to fetch appeals: {e}', 'error')
+    
+    return render_template('moderation_appeals.html', appeals=appeals, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/appeals/<int:appeal_id>/resolve', methods=['POST'])
+def moderation_resolve_appeal(appeal_id):
+    """Resolve an appeal."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    resolution = request.form.get('resolution', 'denied')
+    notes = request.form.get('notes', '')
+    
+    try:
+        r = requests.post(f'{MODERATION_SERVICE_URL}/appeals/{appeal_id}/resolve', 
+                          headers=headers, 
+                          json={'resolution': resolution, 'notes': notes}, 
+                          timeout=10)
+        if r.status_code == 200:
+            flash('Appeal resolved successfully.', 'success')
+        else:
+            detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+            flash(f'Failed to resolve appeal: {detail}', 'error')
+    except Exception as e:
+        flash(f'Failed to resolve appeal: {e}', 'error')
+    
+    return redirect(url_for('moderation_appeals'))
+
+
+@app.route('/moderation/queue')
+def moderation_queue():
+    """View moderation queue."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    queue_items = []
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/queue', headers=headers, params={'limit': 50}, timeout=5)
+        if r.status_code == 200:
+            queue_items = r.json() or []
+    except Exception as e:
+        flash(f'Failed to fetch queue: {e}', 'error')
+    
+    return render_template('moderation_queue.html', queue_items=queue_items, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/queue/<int:item_id>/claim', methods=['POST'])
+def moderation_claim_item(item_id):
+    """Claim a queue item."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        return _json_response({'detail': 'Access denied'}, 403)
+    
+    headers = _get_moderation_headers()
+    
+    try:
+        r = requests.post(f'{MODERATION_SERVICE_URL}/queue/{item_id}/claim', headers=headers, timeout=10)
+        if r.status_code == 200:
+            return _json_response({'success': True})
+        else:
+            detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+            return _json_response({'detail': detail}, r.status_code)
+    except Exception as e:
+        return _json_response({'detail': str(e)}, 500)
+
+
+@app.route('/moderation/view/<item_type>/<int:item_id>')
+def moderation_view_item(item_type, item_id):
+    """View a specific item (report, dispute, appeal)."""
+    if item_type == 'report':
+        return redirect(url_for('moderation_report_detail', report_id=item_id))
+    elif item_type == 'dispute':
+        return redirect(url_for('moderation_dispute_detail', dispute_id=item_id))
+    elif item_type == 'appeal':
+        return redirect(url_for('moderation_appeal_detail', appeal_id=item_id))
+    else:
+        flash('Unknown item type.', 'error')
+        return redirect(url_for('moderation_dashboard'))
+
+
+@app.route('/moderation/users')
+def moderation_users():
+    """Search and view users for moderation."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    users = []
+    q = request.args.get('q', '')
+    
+    if q:
+        try:
+            r = requests.get(f'{MODERATION_SERVICE_URL}/users/search', headers=headers, params={'q': q, 'limit': 50}, timeout=5)
+            if r.status_code == 200:
+                users = r.json() or []
+        except Exception as e:
+            flash(f'Failed to search users: {e}', 'error')
+    
+    return render_template('moderation_users.html', users=users, q=q, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/users/<int:target_user_id>')
+def moderation_user_detail(target_user_id):
+    """View user moderation details."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied. Moderator or admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    user_data = None
+    actions = []
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/users/{target_user_id}', headers=headers, timeout=5)
+        if r.status_code == 200:
+            user_data = r.json()
+        else:
+            flash('User not found.', 'error')
+            return redirect(url_for('moderation_users'))
+    except Exception as e:
+        flash(f'Failed to fetch user: {e}', 'error')
+        return redirect(url_for('moderation_users'))
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/users/{target_user_id}/actions', headers=headers, timeout=5)
+        if r.status_code == 200:
+            actions = r.json() or []
+    except Exception:
+        pass
+    
+    return render_template('moderation_user_detail.html', user=user_data, actions=actions, is_admin=role in ('admin', 'superadmin'))
+
+
+@app.route('/moderation/users/<int:target_user_id>/action', methods=['POST'])
+def moderation_user_action(target_user_id):
+    """Take moderation action on a user."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed:
+        flash('Access denied.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    action = request.form.get('action', '')
+    reason = request.form.get('reason', '')
+    duration = request.form.get('duration')
+    
+    payload = {'action': action, 'reason': reason}
+    if duration:
+        payload['duration_hours'] = int(duration)
+    
+    try:
+        r = requests.post(f'{MODERATION_SERVICE_URL}/users/{target_user_id}/{action}', 
+                          headers=headers, 
+                          json=payload, 
+                          timeout=10)
+        if r.status_code == 200:
+            flash(f'Action "{action}" applied successfully.', 'success')
+        else:
+            detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+            flash(f'Failed to apply action: {detail}', 'error')
+    except Exception as e:
+        flash(f'Failed to apply action: {e}', 'error')
+    
+    return redirect(url_for('moderation_user_detail', target_user_id=target_user_id))
+
+
+@app.route('/moderation/audit-logs')
+def moderation_audit_logs():
+    """View audit logs (admin only)."""
+    is_allowed, role, user_id = _check_moderator_access()
+    if not is_allowed or role not in ('admin', 'superadmin'):
+        flash('Access denied. Admin role required.', 'error')
+        return redirect(url_for('home'))
+    
+    headers = _get_moderation_headers()
+    logs = []
+    
+    try:
+        page = int(request.args.get('page', 1))
+    except:
+        page = 1
+    
+    try:
+        r = requests.get(f'{MODERATION_SERVICE_URL}/audit-log', headers=headers, params={'limit': 100, 'skip': (page-1)*100}, timeout=5)
+        if r.status_code == 200:
+            logs = r.json() or []
+    except Exception as e:
+        flash(f'Failed to fetch audit logs: {e}', 'error')
+    
+    return render_template('moderation_audit_logs.html', logs=logs, page=page, is_admin=True)
+
+
+# User-facing report submission
+@app.route('/report', methods=['GET', 'POST'])
+def submit_report():
+    """Submit a report (for regular users)."""
+    if not request.cookies.get('access_token'):
+        flash('Please log in to submit a report.', 'warning')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        headers = _get_moderation_headers()
+        report_type = request.form.get('report_type', 'other')
+        target_type = request.form.get('target_type', 'user')
+        target_id = request.form.get('target_id')
+        description = request.form.get('description', '')
+        
+        payload = {
+            'report_type': report_type,
+            'target_type': target_type,
+            'target_id': int(target_id) if target_id else None,
+            'description': description
+        }
+        
+        try:
+            r = requests.post(f'{MODERATION_SERVICE_URL}/reports', headers=headers, json=payload, timeout=10)
+            if r.status_code in (200, 201):
+                flash('Report submitted successfully. Thank you.', 'success')
+                return redirect(url_for('home'))
+            else:
+                detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+                flash(f'Failed to submit report: {detail}', 'error')
+        except Exception as e:
+            flash(f'Failed to submit report: {e}', 'error')
+    
+    # Pre-fill from query params
+    target_type = request.args.get('target_type', 'user')
+    target_id = request.args.get('target_id', '')
+    
+    return render_template('report_form.html', target_type=target_type, target_id=target_id)
+
+
+# User-facing dispute submission
+@app.route('/dispute', methods=['GET', 'POST'])
+def submit_dispute():
+    """Submit a trade dispute (for regular users)."""
+    if not request.cookies.get('access_token'):
+        flash('Please log in to submit a dispute.', 'warning')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        headers = _get_moderation_headers()
+        trade_id = request.form.get('trade_id', '')
+        reason = request.form.get('reason', '')
+        description = request.form.get('description', '')
+        
+        payload = {
+            'trade_id': trade_id,
+            'reason': reason,
+            'description': description
+        }
+        
+        try:
+            r = requests.post(f'{MODERATION_SERVICE_URL}/disputes', headers=headers, json=payload, timeout=10)
+            if r.status_code in (200, 201):
+                flash('Dispute submitted successfully. A moderator will review it.', 'success')
+                return redirect(url_for('trades_list'))
+            else:
+                detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
+                flash(f'Failed to submit dispute: {detail}', 'error')
+        except Exception as e:
+            flash(f'Failed to submit dispute: {e}', 'error')
+    
+    # Pre-fill trade_id from query param
+    trade_id = request.args.get('trade_id', '')
+    
+    return render_template('dispute_form.html', trade_id=trade_id)
 
 
 
