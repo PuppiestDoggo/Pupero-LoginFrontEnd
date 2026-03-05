@@ -97,7 +97,7 @@
     <div class="form-field">
       <label>
         Marge (%)
-        <input type="number" name="margin" value="0">
+    <input type="number" name="margin" step="0.1" value="0">
       </label>
     </div>
 
@@ -123,14 +123,14 @@
     <div class="form-field">
       <label>
         Limite minimale
-        <input type="number" name="min_limit">
+    <input type="number" name="min_limit" step="0.0001" min="0.0001">
       </label>
     </div>
 
     <div class="form-field">
       <label>
         Limite maximale
-        <input type="number" name="max_limit">
+    <input type="number" name="max_limit" step="0.0001" min="0.0001">
       </label>
     </div>
   </section>

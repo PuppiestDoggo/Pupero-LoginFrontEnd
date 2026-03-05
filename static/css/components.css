@@ -22,8 +22,13 @@
   transition:
     background 0.2s ease,
     color 0.2s ease,
-    box-shadow 0.2s ease,
     transform 0.15s ease;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
 }
 
 /* =====================
@@ -95,4 +100,49 @@
 
 .btn-warning:hover {
   filter: brightness(1.1);
+}
+
+/* =====================================================
+   COOKIE BANNER (RGPD)
+   ===================================================== */
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-header);
+  border-top: 1px solid var(--border-soft);
+  padding: 1rem 2rem;
+  z-index: 2000;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+}
+
+.cookie-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.cookie-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.cookie-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .cookie-content {
+    flex-direction: column;
+    text-align: center;
+  }
 }

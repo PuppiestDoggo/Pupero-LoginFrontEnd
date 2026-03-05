@@ -69,10 +69,10 @@
     <input type="text" name="promo_text" maxlength="255" value="{{ ad.promo_text }}">
   </label>
   <label>Limite min de transaction
-    <input type="number" name="min_limit" step="0.0000000001" value="{{ ad.min_limit }}">
+    <input type="number" name="min_limit" step="0.0001" min="0.0001" value="{{ ad.min_limit }}">
   </label>
   <label>Limite max de transaction
-    <input type="number" name="max_limit" step="0.0000000001" value="{{ ad.max_limit }}">
+    <input type="number" name="max_limit" step="0.0001" min="0.0001" value="{{ ad.max_limit }}">
   </label>
   <label>Temps d'escrow (minutes)
     <input type="number" name="escrow_minutes" value="{{ ad.escrow_minutes or 60 }}">
