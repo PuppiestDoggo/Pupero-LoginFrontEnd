@@ -55,9 +55,15 @@
             {% if not request.cookies.get('access_token') %}
               <a href="{{ url_for('login') }}" class="btn btn-secondary">Connexion</a>
             {% else %}
-              <a href="{{ url_for('debug_admin_full_enable') }}" class="btn btn-danger" style="background-color: #d9534f; color: white;">
-                  Enable Full Admin
-              </a>
+              {% if is_admin %}
+                <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">
+                    Disable Admin
+                </a>
+              {% else %}
+                <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-danger" style="background-color: #d9534f; color: white;">
+                    Enable Admin
+                </a>
+              {% endif %}
               <a href="{{ url_for('profile') }}" class="btn btn-secondary">Profil</a>
               <a href="{{ url_for('logout') }}" class="btn btn-primary">Déconnexion</a>
             {% endif %}

@@ -1156,33 +1156,40 @@ def debug_isadmin_off():
     return resp
 
 
-@app.route('/debug/admin/full-enable')
-def debug_admin_full_enable():
+@app.route('/debug/admin/full-toggle')
+def debug_admin_full_toggle():
     headers = get_auth_headers()
     if not headers:
-        flash('Please log in first to become a real admin.', 'warning')
+        flash('Please log in first to manage admin status.', 'warning')
         return redirect(url_for('login'))
 
     uid = _get_logged_in_user_id()
     resp = make_response(redirect(request.referrer or url_for('home')))
 
-    # 1. Set Demo Admin Cookie
+    # 1. Determine current admin status (cookie-based as a fast check, but backend is authoritative)
+    current_cookie = (request.cookies.get('isadmin') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    # 2. Check real admin (optional, let's just toggle both based on the cookie status or let it try to set it)
+    new_admin = not current_cookie
+    new_role = "admin" if new_admin else "user"
+    new_cookie_val = "1" if new_admin else "0"
+
+    # 1. Toggle Demo Admin Cookie
     try:
-        resp.set_cookie('isadmin', '1', max_age=60*60*24*30,
+        resp.set_cookie('isadmin', new_cookie_val, max_age=60*60*24*30,
                         samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
     except Exception:
-        resp.set_cookie('isadmin', '1')
+        resp.set_cookie('isadmin', new_cookie_val)
 
-    # 2. Set Real Admin Role in Backend
+    # 2. Toggle Real Admin Role in Backend
     try:
         r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/role",
-                          json={"role": "admin"}, headers=headers, timeout=10)
+                          json={"role": new_role}, headers=headers, timeout=10)
         if r.status_code == 200:
-            flash('Full Admin privileges granted (Demo + Real)!', 'success')
+            flash(f'Full Admin {"enabled" if new_admin else "disabled"} (Demo + Real)!', 'success')
         else:
-            flash(f'Demo Admin enabled, but Real Admin failed: {r.text}', 'warning')
+            flash(f'Demo Admin updated, but Real Admin failed: {r.text}', 'warning')
     except Exception as e:
-        flash(f'Demo Admin enabled, but error reaching backend: {e}', 'warning')
+        flash(f'Demo Admin updated, but error reaching backend: {e}', 'warning')
 
     return resp
 
