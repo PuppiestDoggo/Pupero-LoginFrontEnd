@@ -15,18 +15,27 @@
 
   <!-- ===== Informations utilisateur ===== -->
   <div class="profile-card">
-    <p>
-      <strong>Nom d’utilisateur :</strong> {{ user.username or '(aucun)' }}
-      {% if user.username %}
-        <a class="link"
-           href="{{ url_for('public_profile', username=user.username) }}">
-          Voir le profil public
-        </a>
-      {% endif %}
-    </p>
-    <p><strong>Email :</strong> {{ user.email }}</p>
-    <p><strong>Rôle :</strong> {{ user.role }}</p>
-    <p><strong>Phrase :</strong> {{ user.phrase }}</p>
+    <div class="profile-info-grid">
+      <div class="info-item">
+        <span class="info-label">Nom d’utilisateur</span>
+        <span class="info-value">{{ user.username or '(aucun)' }}</span>
+        {% if user.username %}
+          <a class="btn btn-outline small" href="{{ url_for('public_profile', username=user.username) }}">Voir profil public</a>
+        {% endif %}
+      </div>
+      <div class="info-item">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ user.email }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Rôle</span>
+        <span class="info-value role-badge">{{ user.role }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Phrase de sécurité</span>
+        <span class="info-value">{{ user.phrase }}</span>
+      </div>
+    </div>
   </div>
 
   <!-- ===== Modifier la phrase ===== -->

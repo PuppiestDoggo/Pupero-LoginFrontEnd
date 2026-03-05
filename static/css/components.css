@@ -31,15 +31,16 @@
    ===================== */
 
 .btn-primary {
-  background: rgba(79, 140, 255, 0.15);
-  color: var(--primary, #4f8cff);
-  border: 1px solid rgba(79, 140, 255, 0.35);
+  background: var(--primary);
+  color: var(--text-inv);
+  border: 1px solid var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-  background: var(--primary, #4f8cff);
-  color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.35);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
@@ -48,26 +49,45 @@
    ===================== */
 
 .btn-secondary {
-  background: transparent;
-  color: var(--text-main, #e5e7eb);
-  border: 1px solid var(--border-soft, rgba(255,255,255,0.15));
+  background: var(--secondary);
+  color: var(--text-inv);
+  border: 1px solid var(--secondary);
 }
 
 .btn-secondary:hover {
-  background: rgba(79, 140, 255, 0.15);
-  color: var(--primary, #4f8cff);
-  border-color: var(--primary, #4f8cff);
-  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.25);
+  filter: brightness(1.1);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-muted);
 }
 
 /* DANGER (logout) */
 .btn-danger {
-  background: rgba(239,68,68,0.15);
-  color: #f87171;
-  border: 1px solid rgba(239,68,68,0.35);
+  background: var(--danger);
+  color: var(--text-inv);
+  border: 1px solid var(--danger);
 }
 
 .btn-danger:hover {
-  background: rgba(239,68,68,0.25);
+  filter: brightness(1.1);
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: var(--text-inv);
+  border: 1px solid var(--warning);
+}
+
+.btn-warning:hover {
+  filter: brightness(1.1);
 }

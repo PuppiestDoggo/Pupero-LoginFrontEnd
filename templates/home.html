@@ -9,36 +9,66 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Bienvenue sur Pupero</h1>
-    <p>
-        Ceci est une page d’accueil simple permettant de tester les fonctionnalités Monero
-        dans l’environnement de démonstration du projet.
+<div class="hero-section">
+    <h1>Échangez vos Monero en toute sécurité</h1>
+    <p class="hero-subtitle">
+        Pupero est une plateforme moderne et sécurisée pour le trading de Monero (XMR). 
+        Profitez d'une interface intuitive, de transactions rapides et d'une confidentialité totale.
     </p>
-
-    <section>
-      <h2>Actions rapides</h2>
-      <ul>
-        {% if request.cookies.get('access_token') %}
-          <li><a href="{{ url_for('balances') }}" class="btn btn-primary">Consulter vos soldes XMR de démonstration</a></li>
-          <li><a href="{{ url_for('offers') }}" class="btn btn-secondary">Parcourir les offres</a></li>
-          <li><a href="{{ url_for('profile') }}" class="btn btn-secondary">Gérer votre profil et la double authentification (2FA)</a></li>
+    <div class="hero-actions">
+        {% if not request.cookies.get('access_token') %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Commencer maintenant</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline">Se connecter</a>
         {% else %}
-          <a href="{{ url_for('register') }}" class="btn btn-secondary">Créer un compte</a>
-          <a href="{{ url_for('login') }}" class="btn btn-secondary">Se connecter pour accéder au portefeuille et aux offres</a>
+            <a href="{{ url_for('offers') }}" class="btn btn-primary">Parcourir les offres</a>
+            <a href="{{ url_for('balances') }}" class="btn btn-outline">Mon Portefeuille</a>
         {% endif %}
-      </ul>
-    </section>
+    </div>
+</div>
 
-    <section>
-      <h2>Tester Monero (démonstration)</h2>
-      <p>
-          Utilisez le service de transactions de démonstration pour créditer de faux XMR
-          et simuler des transferts entre utilisateurs.
-      </p>
-      <ol>
-        <li>Créer un compte et se connecter.</li>
-        <li>Accéder à la page des soldes pour consulter vos XMR fictifs ou réels.</li>
-        <li>Augmenter votre solde de démonstration, puis tester un transfert.</li>
-      </ol>
-    </section>
+<div class="features-grid">
+    <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Sécurité Maximale</h3>
+        <p>Authentification à deux facteurs (2FA) et protection avancée de vos données et transactions.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Rapidité</h3>
+        <p>Système d'échanges optimisé pour des transactions fluides entre acheteurs et vendeurs.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">🌐</div>
+        <h3>Confidentialité</h3>
+        <p>Basé sur Monero, la cryptomonnaie leader pour le respect de la vie privée.</p>
+    </div>
+</div>
+
+{% if request.cookies.get('access_token') %}
+<section class="quick-actions-modern">
+    <h2>Actions rapides</h2>
+    <div class="actions-grid">
+        <a href="{{ url_for('balances') }}" class="action-item">
+            <span class="action-title">Consulter vos soldes</span>
+            <span class="action-desc">Vérifiez vos XMR disponibles</span>
+        </a>
+        <a href="{{ url_for('offers') }}" class="action-item">
+            <span class="action-title">Parcourir les offres</span>
+            <span class="action-desc">Trouvez la meilleure opportunité</span>
+        </a>
+        <a href="{{ url_for('profile') }}" class="action-item">
+            <span class="action-title">Gérer votre profil</span>
+            <span class="action-desc">Sécurité et paramètres personnels</span>
+        </a>
+    </div>
+</section>
+{% endif %}
+
+<section class="demo-notice">
+    <h2>Environnement de démonstration</h2>
+    <p>
+        Note : Vous êtes actuellement sur une version de démonstration de Pupero. 
+        Toutes les transactions effectuées ici utilisent des jetons de test sans valeur réelle.
+    </p>
+</section>
 {% endblock %}

@@ -2,63 +2,72 @@
 {% block title %}Offres{% endblock %}
 {% block content %}
 
-<h1>Offres</h1>
+<h1>Offres de Marché</h1>
 
-<div class="offers-actions">
-  <a href="{{ url_for('create_ad') }}" class="btn btn-primary">
-    Créer une offre
-  </a>
+<div class="offers-header">
+  <div class="filter-section">
+    <form method="get" action="{{ url_for('offers') }}" class="filter-form">
+      <div class="form-group-inline">
+        <label for="status">Statut</label>
+        <select name="status" id="status" class="form-select">
+          <option value="">Toutes les offres</option>
+          <option value="open" {% if request.args.get('status')=='open' %}selected{% endif %}>Ouvertes</option>
+          <option value="closed" {% if request.args.get('status')=='closed' %}selected{% endif %}>Fermées</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-outline">Filtrer</button>
+    </form>
+  </div>
+  
+  <div class="offers-actions">
+    <a href="{{ url_for('create_ad') }}" class="btn btn-primary">
+      Créer une offre
+    </a>
+  </div>
 </div>
 
-<form method="get" action="{{ url_for('offers') }}">
-  <label>
-    Statut :
-    <select name="status">
-      <option value="">Toutes</option>
-      <option value="open" {% if request.args.get('status')=='open' %}selected{% endif %}>
-        Ouvertes
-      </option>
-      <option value="closed" {% if request.args.get('status')=='closed' %}selected{% endif %}>
-        Fermées
-      </option>
-    </select>
-  </label>
-  <button type="submit" class="btn">
-    Filtrer
-  </button>
-</form>
-
-<h2>Liste des offres</h2>
-
-<ul class="offers-list">
+<div class="offers-grid-container">
   {% for o in offers %}
     {% set side = (o.__side or 'sell')|lower %}
-    <li class="offer-item">
-      <span class="offer-side {{ side }}">
-        {% if side == 'sell' %}
-          VENTE XMR
-        {% else %}
-          ACHAT XMR
-        {% endif %}
-      </span>
-
-      <a href="{{ url_for('offer_detail', offer_id=o.id) }}">
-        {{ o.title }}
-      </a>
-
-      — {{ o.price }} XMR — {{ o.status }}
-      — vendeur :
-      {% if o.seller_name %}
-        <a href="{{ url_for('public_profile', username=o.seller_name) }}">
-          {{ o.seller_name }}
-        </a>
-      {% else %}
-        inconnu
-      {% endif %}
-    </li>
+    <div class="offer-card-modern">
+      <div class="offer-card-header">
+        <span class="badge {{ side }}">
+          {% if side == 'sell' %}VENTE{% else %}ACHAT{% endif %}
+        </span>
+        <span class="offer-status-badge {{ o.status }}">{{ o.status }}</span>
+      </div>
+      
+      <h3 class="offer-title">
+        <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
+      </h3>
+      
+      <div class="offer-details">
+        <div class="offer-price-box">
+          <span class="price-label">Prix</span>
+          <span class="price-value">{{ o.price }} XMR</span>
+        </div>
+        
+        <div class="offer-user">
+          <span class="user-label">Utilisateur</span>
+          <span class="user-value">
+            {% if o.seller_name %}
+              <a href="{{ url_for('public_profile', username=o.seller_name) }}">{{ o.seller_name }}</a>
+            {% else %}
+              inconnu
+            {% endif %}
+          </span>
+        </div>
+      </div>
+      
+      <div class="offer-card-footer">
+        <a href="{{ url_for('offer_detail', offer_id=o.id) }}" class="btn btn-outline full-width">Détails de l'offre</a>
+      </div>
+    </div>
   {% else %}
-    <li>Aucune offre trouvée.</li>
+    <div class="empty-state">
+      <p>Aucune offre trouvée pour le moment.</p>
+    </div>
   {% endfor %}
-</ul>
+</div>
 
 {% endblock %}

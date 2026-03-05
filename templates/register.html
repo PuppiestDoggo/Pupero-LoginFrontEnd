@@ -27,30 +27,30 @@
 
     <form method="post" class="login-form">
       <div class="form-group">
-        <label>Nom d'utilisateur</label>
-        <input type="text" name="username" required>
+        <label for="username">Nom d'utilisateur</label>
+        <input type="text" id="username" name="username" required placeholder="Choisissez un pseudonyme">
       </div>
 
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="email" required>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required placeholder="votre@email.com">
       </div>
 
       <div class="form-group">
-        <label>Mot de passe</label>
-        <input type="password" name="password" required>
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" required placeholder="••••••••">
       </div>
 
       <div class="login-actions">
         <button type="submit" class="btn btn-primary">
           Créer un compte
         </button>
+        <a href="{{ url_for('login') }}" class="btn btn-outline">Se connecter</a>
       </div>
     </form>
 
     <p class="login-note">
-      Vous avez déjà un compte ?
-      <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+      En créant un compte, vous acceptez nos conditions d'utilisation.
     </p>
   </div>
 

@@ -1,117 +1,142 @@
 {% extends 'base.html' %}
 {% block title %}Soldes{% endblock %}
 {% block content %}
-<h1>Vos soldes</h1>
+<h1>Portefeuille Monero</h1>
 
-<h2>Votre sous-adresse Monero</h2>
-{% if monero_address %}
-<p style="word-break: break-all;">{{ monero_address }}</p>
-{% else %}
-<p style="color:#555;">Aucune sous-adresse pour le moment pour votre compte.</p>
-{% endif %}
-<form method="post" action="{{ url_for('rotate_address') }}" style="margin:8px 0;">
-  <button type="submit">Créer une nouvelle sous-adresse</button>
-  <span style="color:#555; font-size:0.9em;">Les anciennes sous-adresses seront désactivées et nettoyées après environ 1 jour si elles sont vides.</span>
-</form>
-
-<h2>Historique des sous-adresses</h2>
-{% if subaddresses and subaddresses|length > 0 %}
-<table border="1" cellpadding="6" cellspacing="0" style="width:100%; table-layout:fixed;">
-  <thead>
-    <tr>
-      <th align="left" style="width:60px;">ID</th>
-      <th align="left">Adresse</th>
-      <th align="left" style="width:140px;">Libellé</th>
-      <th align="left" style="width:180px;">Créée le</th>
-      <th align="left" style="width:90px;">Statut</th>
-      <th align="left" style="width:200px;">Date de suppression</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for a in subaddresses %}
-    <tr>
-      <td>{{ a.id }}</td>
-      <td style="word-break: break-all;">
-        {{ a.address }}
-        {% if monero_address and a.address == monero_address %}
-          <span style="margin-left:6px;padding:2px 6px;border-radius:8px;background:#e0f2f1;color:#00695c;font-size:0.85em;">actuelle</span>
+<div class="wallet-grid">
+  <!-- Section Solde Principal -->
+  <div class="wallet-card balance-main">
+    <h3>Solde Total Disponible</h3>
+    {% if balance %}
+      <div class="balance-amount">
+        {% set total_xmr = (balance.fake_xmr or 0) + (balance.real_xmr or 0) %}
+        <span class="xmr-symbol">XMR</span>
+        <span class="value">{{ ('%.10f' % total_xmr).rstrip('0').rstrip('.') }}</span>
+      </div>
+      <div class="balance-details-row">
+        {% if is_admin %}
+          <div class="detail-item">
+            <span class="label">Faux XMR (DB)</span>
+            <span class="val">{{ ('%.10f' % balance.fake_xmr).rstrip('0').rstrip('.') }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Vrais XMR (Externes)</span>
+            <span class="val">{{ ('%.10f' % balance.real_xmr).rstrip('0').rstrip('.') }}</span>
+          </div>
         {% endif %}
-      </td>
-      <td>{{ a.label or '' }}</td>
-      <td>{{ a.created_at }}</td>
-      <td>{% if a.is_disabled %}<span style="color:#b71c1c;">désactivée</span>{% else %}<span style="color:#1b5e20;">active</span>{% endif %}</td>
-      <td>{{ a.deletion_date or '' }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p style="color:#555;">Aucune sous-adresse pour le moment.</p>
-{% endif %}
+        <div class="detail-item">
+          <span class="label">Dernière mise à jour</span>
+          <span class="val">{{ balance.updated_at }}</span>
+        </div>
+      </div>
+    {% else %}
+      <p class="empty-msg">Données du solde non disponibles.</p>
+    {% endif %}
+  </div>
 
-{% if balance %}
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr><th align="left">ID Utilisateur</th><td>{{ balance.user_id }}</td></tr>
-  {% if is_admin %}
-    <tr><th align="left">Faux XMR (en DB)</th><td>{{ ('%.10f' % balance.fake_xmr).rstrip('0').rstrip('.') }}</td></tr>
-    <tr><th align="left">Vrais XMR (externes)</th><td>{{ ('%.10f' % balance.real_xmr).rstrip('0').rstrip('.') }}</td></tr>
-  {% else %}
-    {% set total_xmr = (balance.fake_xmr or 0) + (balance.real_xmr or 0) %}
-    <tr><th align="left">Solde (XMR)</th><td>{{ ('%.10f' % total_xmr).rstrip('0').rstrip('.') }}</td></tr>
-  {% endif %}
-  <tr><th align="left">Mis à jour le</th><td>{{ balance.updated_at }}</td></tr>
-</table>
-{% else %}
-<p>Solde non disponible.</p>
-{% endif %}
+  <!-- Section Adresse de Réception -->
+  <div class="wallet-card address-card">
+    <h3>Votre Adresse de Réception</h3>
+    <div class="address-container">
+      {% if monero_address %}
+        <code class="monero-addr">{{ monero_address }}</code>
+        <div class="address-actions">
+          <form method="post" action="{{ url_for('rotate_address') }}">
+            <button type="submit" class="btn btn-outline small">Générer une nouvelle adresse</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="empty-msg">Aucune adresse active.</p>
+        <form method="post" action="{{ url_for('rotate_address') }}">
+          <button type="submit" class="btn btn-primary small">Créer une adresse</button>
+        </form>
+      {% endif %}
+    </div>
+    <p class="address-hint">Les anciennes adresses restent valides 24h après désactivation si elles sont vides.</p>
+  </div>
+</div>
+
+<div class="wallet-sections">
+  <!-- Onglets/Sections -->
+  <div class="wallet-card transactions-card">
+    <div class="card-header-flex">
+      <h3>Historique des adresses</h3>
+    </div>
+    {% if subaddresses and subaddresses|length > 0 %}
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Adresse</th>
+            <th>Créée le</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in subaddresses %}
+          <tr {% if monero_address and a.address == monero_address %}class="current-row"{% endif %}>
+            <td class="addr-cell"><code>{{ a.address }}</code></td>
+            <td>{{ a.created_at }}</td>
+            <td>
+              {% if a.is_disabled %}
+                <span class="status-badge disabled">Désactivée</span>
+              {% else %}
+                <span class="status-badge active">Active</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="empty-msg">Aucun historique d'adresse disponible.</p>
+    {% endif %}
+  </div>
+
+  <div class="wallet-card transfer-card">
+    <h3>Envoyer des Monero</h3>
+    <form method="post" action="{{ url_for('balances_withdraw') }}" class="transfer-form">
+      <div class="form-group">
+        <label for="to_address">Adresse de destination</label>
+        <input type="text" id="to_address" name="to_address" required placeholder="4... ou 8...">
+      </div>
+      <div class="form-group">
+        <label for="amount_xmr">Montant (XMR)</label>
+        <input type="number" id="amount_xmr" name="amount_xmr" step="0.0000000001" min="0" required placeholder="0.00">
+      </div>
+      <button type="submit" class="btn btn-primary">Envoyer les fonds</button>
+    </form>
+    <p class="form-note">Limite : solde total disponible. Le système valide la limite côté serveur.</p>
+  </div>
+</div>
 
 {% if is_admin %}
-<h2>Augmenter le solde</h2>
-<form method="post" action="{{ url_for('balances_increase') }}" style="display:flex;gap:8px;align-items:end;">
-  <label>Type
-    <select name="kind">
-      <option value="fake">Faux</option>
-      <option value="real">Réel</option>
-    </select>
-  </label>
-  <label>Montant (XMR)
-    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
-  </label>
-  <button type="submit">Augmenter</button>
-</form>
+<div class="admin-wallet-controls">
+  <div class="wallet-card">
+    <h3>Contrôles Admin (Solde)</h3>
+    <div class="admin-forms-flex">
+      <form method="post" action="{{ url_for('balances_increase') }}" class="admin-inline-form">
+        <h4>Augmenter</h4>
+        <select name="kind" class="form-select small">
+          <option value="fake">Faux</option>
+          <option value="real">Réel</option>
+        </select>
+        <input type="number" name="amount_xmr" step="0.0000000001" min="0" required placeholder="0.00" class="form-input small">
+        <button type="submit" class="btn btn-warning small">Ajouter</button>
+      </form>
 
-<h2>Diminuer le solde</h2>
-<form method="post" action="{{ url_for('balances_decrease') }}" style="display:flex;gap:8px;align-items:end;">
-  <label>Type
-    <select name="kind">
-      <option value="fake">Faux</option>
-      <option value="real">Réel</option>
-    </select>
-  </label>
-  <label>Montant (XMR)
-    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
-  </label>
-  <button type="submit">Diminuer</button>
-</form>
-{% endif %}
-
-<h2>Retirer (Envoyer des Monero)</h2>
-<form method="post" action="{{ url_for('balances_withdraw') }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
-  <label style="flex:1 1 420px;">Adresse de destination
-    <input type="text" name="to_address" style="width:100%;" required>
-  </label>
-  <label>Montant (XMR)
-    <input type="number" name="amount_xmr" step="0.0000000001" min="0" required>
-  </label>
-  <button type="submit">Envoyer</button>
-</form>
-{% if is_admin %}
-<p style="color:#555;max-width:720px;">
-  Note : Vous ne pouvez pas retirer plus que votre solde total (Faux XMR + Vrais XMR). Le système appliquera cette limite côté serveur.
-</p>
-{% else %}
-<p style="color:#555;max-width:720px;">
-  Note : Vous ne pouvez pas retirer plus que votre solde total. Le système appliquera cette limite côté serveur.
-</p>
+      <form method="post" action="{{ url_for('balances_decrease') }}" class="admin-inline-form">
+        <h4>Diminuer</h4>
+        <select name="kind" class="form-select small">
+          <option value="fake">Faux</option>
+          <option value="real">Réel</option>
+        </select>
+        <input type="number" name="amount_xmr" step="0.0000000001" min="0" required placeholder="0.00" class="form-input small">
+        <button type="submit" class="btn btn-danger small">Retirer</button>
+      </form>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
