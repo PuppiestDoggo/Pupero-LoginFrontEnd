@@ -1,99 +1,99 @@
 {% extends 'base.html' %}
-{% block title %}Edit Ad{% endblock %}
+{% block title %}Modifier l'annonce{% endblock %}
 {% block content %}
-<h1>Edit Ad</h1>
-<p><strong>Ad ID:</strong> {{ offer.id }}</p>
+<h1>Modifier l'annonce</h1>
+<p><strong>ID Annonce :</strong> {{ offer.id }}</p>
 <form method="post" style="display:grid;gap:8px;grid-template-columns:repeat(2, minmax(240px, 1fr));">
-  <label style="grid-column:1/3">Title
+  <label style="grid-column:1/3">Titre
     <input type="text" name="title" value="{{ offer.title }}" maxlength="255">
   </label>
-  <label>I'd like to
+  <label>Je souhaite
     <select name="side">
-      <option value="buy" {% if ad.side=='buy' %}selected{% endif %}>Buy</option>
-      <option value="sell" {% if ad.side=='sell' %}selected{% endif %}>Sell</option>
+      <option value="buy" {% if ad.side=='buy' %}selected{% endif %}>Acheter</option>
+      <option value="sell" {% if ad.side=='sell' %}selected{% endif %}>Vendre</option>
     </select>
   </label>
-  <label>Cryptocurrency
+  <label>Cryptomonnaie
     <select name="crypto">
       <option value="XMR" {% if ad.crypto=='XMR' %}selected{% endif %}>Monero (XMR)</option>
     </select>
   </label>
-  <label>Ad country
-    <input type="text" name="country" value="{{ ad.country }}" placeholder="e.g., FR">
+  <label>Pays de l'annonce
+    <input type="text" name="country" value="{{ ad.country }}" placeholder="ex: FR">
   </label>
-  <label>Local currency
+  <label>Devise locale
     <select name="fiat" id="fiat_select">
       <option value="EUR" {% if ad.fiat=='EUR' %}selected{% endif %}>EUR</option>
       <option value="USD" {% if ad.fiat=='USD' %}selected{% endif %}>USD</option>
       <option value="RUB" {% if ad.fiat=='RUB' %}selected{% endif %}>RUB</option>
     </select>
   </label>
-  <label>Price setting
+  <label>Réglage du prix
     <select name="price_mode" id="price_mode">
-      <option value="market" {% if ad.price_mode=='market' %}selected{% endif %}>Market price</option>
-      <option value="equation" {% if ad.price_mode=='equation' %}selected{% endif %}>Pricing equation</option>
-      <option value="fixed" {% if ad.price_mode=='fixed' %}selected{% endif %}>Fixed price</option>
+      <option value="market" {% if ad.price_mode=='market' %}selected{% endif %}>Prix du marché</option>
+      <option value="equation" {% if ad.price_mode=='equation' %}selected{% endif %}>Équation de prix</option>
+      <option value="fixed" {% if ad.price_mode=='fixed' %}selected{% endif %}>Prix fixe</option>
     </select>
   </label>
-  <label id="price_margin_group">Margin (%)
+  <label id="price_margin_group">Marge (%)
     <input type="number" name="margin" step="0.1" value="{{ ad.margin }}">
   </label>
-  <label id="price_fixed_group">Fixed price ({{ ad.fiat }} per 1 XMR)
+  <label id="price_fixed_group">Prix fixe ({{ ad.fiat }} pour 1 XMR)
     <input type="number" name="fixed_price" step="0.01" value="{{ ad.fixed_price or '' }}">
   </label>
-  <label id="price_equation_group">Pricing equation (placeholder)
-    <input type="text" name="pricing_equation" value="{{ ad.pricing_equation }}" placeholder="e.g., market_price * 1.10">
+  <label id="price_equation_group">Équation de prix (placeholder)
+    <input type="text" name="pricing_equation" value="{{ ad.pricing_equation }}" placeholder="ex: market_price * 1.10">
   </label>
 
   <div id="result_price" style="grid-column:1/3; margin-top:4px;">
-    <strong>Resulting price:</strong> <span id="result_price_value">—</span> per 1 XMR
+    <strong>Prix résultant :</strong> <span id="result_price_value">—</span> pour 1 XMR
   </div>
 
   <fieldset style="grid-column:1/3; border:1px solid #ccc; padding:8px;">
-    <legend>Schedule</legend>
-    <label><input type="radio" name="schedule_mode" value="24h" {% if ad.schedule and ad.schedule.mode=='24h' %}checked{% endif %}> 24 hours (always visible)</label>
-    <label style="margin-left:12px;"><input type="radio" name="schedule_mode" value="weekly" {% if ad.schedule and ad.schedule.mode=='weekly' %}checked{% endif %}> Keep weekly (unchanged)</label>
+    <legend>Horaires</legend>
+    <label><input type="radio" name="schedule_mode" value="24h" {% if ad.schedule and ad.schedule.mode=='24h' %}checked{% endif %}> 24 heures (toujours visible)</label>
+    <label style="margin-left:12px;"><input type="radio" name="schedule_mode" value="weekly" {% if ad.schedule and ad.schedule.mode=='weekly' %}checked{% endif %}> Garder hebdomadaire (inchangé)</label>
   </fieldset>
 
-  <label style="grid-column:1/3">Payment method
+  <label style="grid-column:1/3">Méthode de paiement
     <select name="payment_method">
       {% set pm = ad.payment_method or (ad.payment_methods|first) %}
-      <option {% if pm=='Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+      <option {% if pm=='Bank Transfer' %}selected{% endif %}>Virement bancaire</option>
       <option {% if pm=='Revolut' %}selected{% endif %}>Revolut</option>
       <option {% if pm=='Paysafecard' %}selected{% endif %}>Paysafecard</option>
       <option {% if pm=='Crypto (BTC)' %}selected{% endif %}>Crypto (BTC)</option>
       <option {% if pm=='Crypto (ETH)' %}selected{% endif %}>Crypto (ETH)</option>
     </select>
   </label>
-  <label style="grid-column:1/3">Promo text
+  <label style="grid-column:1/3">Texte promotionnel
     <input type="text" name="promo_text" maxlength="255" value="{{ ad.promo_text }}">
   </label>
-  <label>Min transaction limit
+  <label>Limite min de transaction
     <input type="number" name="min_limit" step="0.0000000001" value="{{ ad.min_limit }}">
   </label>
-  <label>Max transaction limit
+  <label>Limite max de transaction
     <input type="number" name="max_limit" step="0.0000000001" value="{{ ad.max_limit }}">
   </label>
-  <label>Escrow time (minutes)
+  <label>Temps d'escrow (minutes)
     <input type="number" name="escrow_minutes" value="{{ ad.escrow_minutes or 60 }}">
   </label>
   <div style="grid-column:1/3">
-    <label><input type="checkbox" name="req_phone" {% if ad.req_phone %}checked{% endif %}> Confirmed phone</label>
-    <label style="margin-left:12px;"><input type="checkbox" name="req_id" {% if ad.req_id %}checked{% endif %}> Confirmed ID</label>
+    <label><input type="checkbox" name="req_phone" {% if ad.req_phone %}checked{% endif %}> Téléphone confirmé</label>
+    <label style="margin-left:12px;"><input type="checkbox" name="req_id" {% if ad.req_id %}checked{% endif %}> Identité confirmée</label>
   </div>
-  <label style="grid-column:1/3">Trade conditions
+  <label style="grid-column:1/3">Conditions d'échange
     <textarea name="trade_conditions" rows="4">{{ ad.trade_conditions }}</textarea>
   </label>
-  <label>Status
+  <label>Statut
     <select name="status">
-      <option value="open" {% if offer.status=='open' %}selected{% endif %}>open</option>
-      <option value="disabled" {% if offer.status=='disabled' %}selected{% endif %}>disabled</option>
-      <option value="closed" {% if offer.status=='closed' %}selected{% endif %}>closed</option>
+      <option value="open" {% if offer.status=='open' %}selected{% endif %}>ouvert</option>
+      <option value="disabled" {% if offer.status=='disabled' %}selected{% endif %}>désactivé</option>
+      <option value="closed" {% if offer.status=='closed' %}selected{% endif %}>fermé</option>
     </select>
   </label>
   <div style="grid-column:1/3;margin-top:1rem;">
-    <button type="submit">Save changes</button>
-    <a href="{{ url_for('my_ads') }}" style="margin-left:12px;">Cancel</a>
+    <button type="submit">Enregistrer les modifications</button>
+    <a href="{{ url_for('my_ads') }}" style="margin-left:12px;">Annuler</a>
   </div>
 </form>
 
@@ -134,7 +134,7 @@
         text = '—';
       }
     } else if (mode === 'equation') {
-      text = 'Use pricing equation (placeholder)';
+      text = 'Utiliser l\'équation de prix (placeholder)';
     }
     const span = document.getElementById('result_price_value');
     if (span) span.textContent = text;

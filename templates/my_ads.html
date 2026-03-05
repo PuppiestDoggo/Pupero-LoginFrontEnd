@@ -1,45 +1,45 @@
 {% extends 'base.html' %}
-{% block title %}My Ads{% endblock %}
+{% block title %}Mes annonces{% endblock %}
 {% block content %}
-<h1>My Ads</h1>
-<p>Showing all ads (owner tools visible only for your ads).</p>
+<h1>Mes annonces</h1>
+<p>Affichage de toutes les annonces (les outils de gestion ne sont visibles que pour vos annonces).</p>
 <ul style="list-style:none;padding-left:0;">
   {% for o in offers %}
   <li style="margin-bottom:12px;border:1px solid #ddd;padding:8px;">
     <div>
       <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
-      — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'unknown' }}
+      — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'inconnu' }}
     </div>
     {% set is_owner = (my_user_id and o.seller_id and my_user_id == o.seller_id) or (my_name and o.seller_name and my_name == o.seller_name) %}
     {% if is_owner %}
     <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-      <a href="{{ url_for('edit_ad', offer_id=o.id) }}">Edit details</a>
-      <form method="post" action="{{ url_for('delete_ad', offer_id=o.id) }}" onsubmit="return confirm('Delete this ad?');" style="display:inline;">
-        <button type="submit" style="background:#b71c1c;color:#fff;">Delete</button>
+      <a href="{{ url_for('edit_ad', offer_id=o.id) }}">Modifier les détails</a>
+      <form method="post" action="{{ url_for('delete_ad', offer_id=o.id) }}" onsubmit="return confirm('Supprimer cette annonce ?');" style="display:inline;">
+        <button type="submit" style="background:#b71c1c;color:#fff;">Supprimer</button>
       </form>
     </div>
     <form method="post" action="{{ url_for('update_ad', offer_id=o.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(4, minmax(160px,1fr));align-items:end;margin-top:8px;">
-      <label>Title
+      <label>Titre
         <input type="text" name="title" value="{{ o.title }}" maxlength="255">
       </label>
-      <label>Price (XMR)
+      <label>Prix (XMR)
         <input type="number" step="0.0000000001" min="0" name="price" value="{{ o.price }}">
       </label>
-      <label>Status
+      <label>Statut
         <select name="status">
-          <option value="open" {% if o.status=='open' %}selected{% endif %}>open</option>
-          <option value="disabled" {% if o.status=='disabled' %}selected{% endif %}>disabled</option>
-          <option value="closed" {% if o.status=='closed' %}selected{% endif %}>closed</option>
+          <option value="open" {% if o.status=='open' %}selected{% endif %}>ouvert</option>
+          <option value="disabled" {% if o.status=='disabled' %}selected{% endif %}>désactivé</option>
+          <option value="closed" {% if o.status=='closed' %}selected{% endif %}>fermé</option>
         </select>
       </label>
       <div>
-        <button type="submit">Quick Save</button>
+        <button type="submit">Sauvegarde rapide</button>
       </div>
     </form>
     {% endif %}
   </li>
   {% else %}
-  <li>No ads yet.</li>
+  <li>Aucune annonce pour le moment.</li>
   {% endfor %}
 </ul>
 {% endblock %}

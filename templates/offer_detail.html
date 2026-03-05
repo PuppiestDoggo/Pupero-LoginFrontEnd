@@ -1,67 +1,67 @@
 {% extends 'base.html' %}
-{% block title %}Offer {{ offer.id }}{% endblock %}
+{% block title %}Offre {{ offer.id }}{% endblock %}
 {% block content %}
 <h1>{{ offer.title }}</h1>
 
 {% set side = (offer_side or ad.side)|lower %}
 <div style="margin:8px 0;padding:8px;border:1px solid #ddd;background:#f9f9f9;">
   {% if side == 'sell' %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">SELL XMR</span>
-    <span style="margin-left:8px;">Offer owner is the <strong>Seller of XMR</strong>. If you start a trade, <strong>you will BUY XMR</strong> and pay fiat externally.</span>
+    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">VENTE XMR</span>
+    <span style="margin-left:8px;">Le propriétaire de l'offre est le <strong>Vendeur de XMR</strong>. Si vous lancez un échange, <strong>vous ACHÈTEREZ des XMR</strong> et paierez en monnaie fiduciaire (fiat) à l'extérieur.</span>
   {% else %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">BUY XMR</span>
-    <span style="margin-left:8px;">Offer owner is the <strong>Buyer of XMR</strong>. If you start a trade, <strong>you will SELL XMR</strong> and receive fiat externally.</span>
+    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">ACHAT XMR</span>
+    <span style="margin-left:8px;">Le propriétaire de l'offre est l'<strong>Acheteur de XMR</strong>. Si vous lancez un échange, <strong>vous VENDREZ des XMR</strong> et recevrez de la monnaie fiduciaire (fiat) à l'extérieur.</span>
   {% endif %}
 </div>
 
 <table border="1" cellpadding="6" cellspacing="0">
-  <tr><th align="left">Status</th><td>{{ offer.status }}</td></tr>
-  <tr><th align="left">Offer owner</th><td>{% if offer.seller_name %}<a href="{{ url_for('public_profile', username=offer.seller_name) }}">{{ offer.seller_name }}</a>{% else %}unknown{% endif %}</td></tr>
-  <tr><th align="left">Side</th><td>{{ side|upper }} XMR</td></tr>
+  <tr><th align="left">Statut</th><td>{{ offer.status }}</td></tr>
+  <tr><th align="left">Propriétaire de l'offre</th><td>{% if offer.seller_name %}<a href="{{ url_for('public_profile', username=offer.seller_name) }}">{{ offer.seller_name }}</a>{% else %}inconnu{% endif %}</td></tr>
+  <tr><th align="left">Côté</th><td>{{ side|upper }} XMR</td></tr>
   <tr><th align="left">Crypto</th><td>{{ ad.crypto }}</td></tr>
   <tr><th align="left">Fiat</th><td>{{ ad.fiat }}</td></tr>
-  <tr><th align="left">Price per XMR</th><td>{{ price_per_xmr }} {{ ad.fiat }}</td></tr>
-  <tr><th align="left">Price setting</th><td>{{ ad.price_mode }}{% if ad.price_mode=='market' %} (margin {{ ad.margin }}%){% elif ad.price_mode=='fixed' %} (fixed {{ ad.fixed_price }} {{ ad.fiat }} / XMR){% elif ad.price_mode=='equation' %} (equation: {{ ad.pricing_equation or 'placeholder' }}){% endif %}</td></tr>
-  <tr><th align="left">Payment method</th><td>{{ ad.payment_method or (ad.payment_methods|first) }}</td></tr>
-  <tr><th align="left">Limits</th><td>{{ ad.min_limit }} - {{ ad.max_limit }} {{ ad.fiat }}</td></tr>
-  <tr><th align="left">Requirements</th><td>phone={{ ad.req_phone }}, id={{ ad.req_id }}</td></tr>
-  <tr><th align="left">Schedule</th><td>{{ ad.schedule_human }}</td></tr>
+  <tr><th align="left">Prix par XMR</th><td>{{ price_per_xmr }} {{ ad.fiat }}</td></tr>
+  <tr><th align="left">Réglage du prix</th><td>{{ ad.price_mode }}{% if ad.price_mode=='market' %} (marge {{ ad.margin }}%){% elif ad.price_mode=='fixed' %} (fixe {{ ad.fixed_price }} {{ ad.fiat }} / XMR){% elif ad.price_mode=='equation' %} (équation: {{ ad.pricing_equation or 'placeholder' }}){% endif %}</td></tr>
+  <tr><th align="left">Méthode de paiement</th><td>{{ ad.payment_method or (ad.payment_methods|first) }}</td></tr>
+  <tr><th align="left">Limites</th><td>{{ ad.min_limit }} - {{ ad.max_limit }} {{ ad.fiat }}</td></tr>
+  <tr><th align="left">Prérequis</th><td>téléphone={{ ad.req_phone }}, id={{ ad.req_id }}</td></tr>
+  <tr><th align="left">Horaires</th><td>{{ ad.schedule_human }}</td></tr>
   <tr><th align="left">Promo</th><td>{{ ad.promo_text }}</td></tr>
-  <tr><th align="left">Trade conditions</th><td>{{ ad.trade_conditions }}</td></tr>
+  <tr><th align="left">Conditions de l'échange</th><td>{{ ad.trade_conditions }}</td></tr>
 </table>
 
 {% if self_trade_block %}
-<h2>Start Trade</h2>
-<p style="color:#b00;">You cannot start a trade with yourself.</p>
-<p><a href="{{ url_for('offers') }}">Back to offers</a></p>
+<h2>Lancer l'échange</h2>
+<p style="color:#b00;">Vous ne pouvez pas lancer un échange avec vous-même.</p>
+<p><a href="{{ url_for('offers') }}">Retour aux offres</a></p>
 {% else %}
-<h2>Start Trade — {% if side == 'sell' %}You will BUY XMR{% else %}You will SELL XMR{% endif %}</h2>
+<h2>Lancer l'échange — {% if side == 'sell' %}Vous ACHÈTEREZ des XMR{% else %}Vous VENDREZ des XMR{% endif %}</h2>
 <form method="post" action="{{ url_for('trade_start', offer_id=offer.id) }}" style="display:grid;gap:8px;max-width:640px;grid-template-columns:repeat(2, minmax(200px,1fr));align-items:end;">
   <div style="grid-column:1/3;">
-    <strong>How much {{ ad.fiat }} / XMR would you like to trade?</strong>
+    <strong>Combien de {{ ad.fiat }} / XMR souhaitez-vous échanger ?</strong>
   </div>
-  <label>{{ ad.fiat }} amount
+  <label>Montant en {{ ad.fiat }}
     <input type="number" step="0.01" min="0" name="fiat_amount" id="fiat_amount" {% if ad.min_limit %}min="{{ ad.min_limit }}"{% endif %} {% if ad.max_limit %}max="{{ ad.max_limit }}"{% endif %}>
     {% if ad.min_limit or ad.max_limit %}
-    <small style="display:block;color:#555;">Limits: {% if ad.min_limit %}min {{ ad.min_limit }}{% endif %}{% if ad.min_limit and ad.max_limit %} · {% endif %}{% if ad.max_limit %}max {{ ad.max_limit }}{% endif %} {{ ad.fiat }}</small>
+    <small style="display:block;color:#555;">Limites : {% if ad.min_limit %}min {{ ad.min_limit }}{% endif %}{% if ad.min_limit and ad.max_limit %} · {% endif %}{% if ad.max_limit %}max {{ ad.max_limit }}{% endif %} {{ ad.fiat }}</small>
     {% endif %}
   </label>
-  <label>XMR amount
+  <label>Montant en XMR
     <input type="number" step="0.0000000001" min="0" name="xmr_amount" id="xmr_amount">
   </label>
-  <label style="grid-column:1/3">Payment method
+  <label style="grid-column:1/3">Méthode de paiement
     <select name="payment_choice">
       {% for pm in ad.payment_methods %}
         <option value="{{ pm }}">{{ pm }}</option>
       {% endfor %}
     </select>
   </label>
-  <label style="grid-column:1/3">Message to counterparty (optional)
-    <textarea name="message" rows="3" placeholder="Hi, I'd like to trade..."></textarea>
+  <label style="grid-column:1/3">Message à la contrepartie (optionnel)
+    <textarea name="message" rows="3" placeholder="Bonjour, je souhaiterais échanger..."></textarea>
   </label>
   <div style="grid-column:1/3">
-    <button type="submit">Start Trade</button>
-    <a href="{{ url_for('offers') }}" style="margin-left:12px;">Back to offers</a>
+    <button type="submit">Lancer l'échange</button>
+    <a href="{{ url_for('offers') }}" style="margin-left:12px;">Retour aux offres</a>
   </div>
 </form>
 <script>
@@ -91,23 +91,23 @@
 {% endif %}
 
 <hr>
-<h3>Reviews of Offer Owner</h3>
+<h3>Avis sur le propriétaire de l'offre</h3>
 {% if reviews_summary and reviews_summary.reviews %}
-    <p>Average Rating: {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} reviews)</p>
+    <p>Note moyenne : {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} avis)</p>
     <ul>
     {% for r in reviews_summary.reviews %}
         <li>
-            <strong>{{ r.rating }}/5</strong> by <strong>{{ r.reviewer_username }}</strong> - {{ r.comment }} 
+            <strong>{{ r.rating }}/5</strong> par <strong>{{ r.reviewer_username }}</strong> - {{ r.comment }} 
             <small>({{ r.created_at }})</small>
             {% if is_admin %}
                 <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
-                   <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete</button>
+                   <button type="submit" onclick="return confirm('Supprimer cet avis (Admin) ?')" style="color:red; font-size:0.8em;">Supprimer</button>
                 </form>
             {% endif %}
         </li>
     {% endfor %}
     </ul>
 {% else %}
-    <p>No reviews yet.</p>
+    <p>Aucun avis pour le moment.</p>
 {% endif %}
 {% endblock %}

@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}My Trades{% endblock %}
+{% block title %}Mes échanges{% endblock %}
 {% block content %}
-<h1>My Trades</h1>
+<h1>Mes échanges</h1>
 {% if trades and trades|length > 0 %}
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
       <tr>
-        <th align="left">Trade ID</th>
-        <th align="left">Offer</th>
-        <th align="left">Role</th>
-        <th align="left">Amount (XMR)</th>
-        <th align="left">Status</th>
+        <th align="left">ID Échange</th>
+        <th align="left">Offre</th>
+        <th align="left">Rôle</th>
+        <th align="left">Montant (XMR)</th>
+        <th align="left">Statut</th>
         <th align="left">Actions</th>
       </tr>
     </thead>
@@ -22,16 +22,16 @@
           <td>{{ t.role }}</td>
           <td>{{ '%.4f'|format(t.amount_xmr) }}</td>
           <td>
-            {% if t.status == 'await_buyer' %}Waiting buyer{% elif t.status == 'await_seller' %}Waiting seller{% else %}{{ t.status }}{% endif %}
+            {% if t.status == 'await_buyer' %}En attente de l'acheteur{% elif t.status == 'await_seller' %}En attente du vendeur{% else %}{{ t.status }}{% endif %}
           </td>
           <td>
-            <a href="{{ url_for('trade_view', trade_id=t.id) }}">Open</a>
+            <a href="{{ url_for('trade_view', trade_id=t.id) }}">Ouvrir</a>
           </td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 {% else %}
-  <p>No trades yet.</p>
+  <p>Aucun échange pour le moment.</p>
 {% endif %}
 {% endblock %}

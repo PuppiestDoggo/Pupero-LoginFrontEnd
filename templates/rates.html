@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
-{% block title %}Monero Rates{% endblock %}
+{% block title %}Taux Monero{% endblock %}
 {% block content %}
-<h1>Monero Conversion Rates</h1>
+<h1>Taux de conversion Monero</h1>
 {% if error %}
-  <p style="color:#b71c1c;">Failed to load prices: {{ error }}</p>
+  <p style="color:#b71c1c;">Échec du chargement des prix : {{ error }}</p>
 {% endif %}
 {% if prices and prices|length > 0 %}
-  <p>Source: {{ source }} — Updated: {{ updated_human }}{% if next_update_human %} — Next refresh by: {{ next_update_human }}Z{% endif %}{% if refresh_seconds %} (every ~{{ refresh_seconds }}s){% endif %}</p>
+  <p>Source : {{ source }} — Mis à jour : {{ updated_human }}{% if next_update_human %} — Prochaine actualisation vers : {{ next_update_human }}Z{% endif %}{% if refresh_seconds %} (toutes les ~{{ refresh_seconds }}s){% endif %}</p>
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
       <tr>
         <th align="left">FIAT</th>
-        <th align="left">Price per 1 XMR</th>
+        <th align="left">Prix pour 1 XMR</th>
       </tr>
     </thead>
     <tbody>
@@ -24,10 +24,10 @@
     </tbody>
   </table>
 
-  <h2 style="margin-top:1rem;">Converter</h2>
+  <h2 style="margin-top:1rem;">Convertisseur</h2>
   <div style="display:grid;gap:8px;grid-template-columns:repeat(3, minmax(200px,1fr));align-items:end;max-width:900px;">
-    <label>XMR amount
-      <input type="number" id="xmr_in" step="0.0000000001" min="0" placeholder="e.g., 1.25">
+    <label>Montant en XMR
+      <input type="number" id="xmr_in" step="0.0000000001" min="0" placeholder="ex: 1.25">
     </label>
     <label>FIAT
       <select id="fiat_sel">
@@ -37,14 +37,14 @@
       </select>
     </label>
     <div>
-      <button id="btn_xmr_to_fiat" type="button">Convert XMR → FIAT</button>
+      <button id="btn_xmr_to_fiat" type="button">Convertir XMR → FIAT</button>
     </div>
     <div style="grid-column:1/4;">
-      <strong>Result:</strong> <span id="res_xmr_to_fiat">—</span>
+      <strong>Résultat :</strong> <span id="res_xmr_to_fiat">—</span>
     </div>
     <hr style="grid-column:1/4;">
-    <label>FIAT amount
-      <input type="number" id="fiat_in" step="0.01" min="0" placeholder="e.g., 250">
+    <label>Montant en FIAT
+      <input type="number" id="fiat_in" step="0.01" min="0" placeholder="ex: 250">
     </label>
     <label>FIAT
       <select id="fiat_sel2">
@@ -54,10 +54,10 @@
       </select>
     </label>
     <div>
-      <button id="btn_fiat_to_xmr" type="button">Convert FIAT → XMR</button>
+      <button id="btn_fiat_to_xmr" type="button">Convertir FIAT → XMR</button>
     </div>
     <div style="grid-column:1/4;">
-      <strong>Result:</strong> <span id="res_fiat_to_xmr">—</span>
+      <strong>Résultat :</strong> <span id="res_fiat_to_xmr">—</span>
     </div>
   </div>
 
@@ -91,6 +91,6 @@
     })();
   </script>
 {% else %}
-  <p style="color:#555;">No prices available at the moment. Please try again later.</p>
+  <p style="color:#555;">Aucun prix disponible pour le moment. Veuillez réessayer plus tard.</p>
 {% endif %}
 {% endblock %}

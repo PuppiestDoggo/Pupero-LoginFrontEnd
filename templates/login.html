@@ -17,24 +17,24 @@
         </div>
 
         <div class="login-right">
-            <h1>Login</h1>
+            <h1>Connexion</h1>
 
             {% if current_stage == 'identifier' %}
             <form method="post" class="login-form" aria-label="Enter username or email">
                 <input type="hidden" name="stage" value="identifier">
 
                 <div class="form-group">
-                    <label>Username or Email:<br>
+                    <label>Nom d'utilisateur ou Email :<br>
                         <input type="text" name="identifier" value="{{ identifier or '' }}" required autocomplete="username">
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Se souvenir de moi</label>
                 </div>
 
                 <div class="login-actions">
-                    <button type="submit" class="btn btn-primary">Continue</button>
+                    <button type="submit" class="btn btn-primary">Continuer</button>
                     <a href="{{ url_for('register') }}" class="btn btn-secondary">Inscription</a>
                 </div>
             </form>
@@ -45,22 +45,22 @@
                 <input type="hidden" name="identifier" value="{{ identifier }}">
 
                 <div class="form-group">
-                    <p class="login-info">Signing in as <strong>{{ identifier }}</strong></p>
+                    <p class="login-info">Connexion en tant que <strong>{{ identifier }}</strong></p>
                 </div>
 
                 <div class="form-group">
-                    <label>Password:<br>
+                    <label>Mot de passe :<br>
                         <input type="password" name="password" required autocomplete="current-password">
                     </label>
                 </div>
 
                 <div class="form-group">
-                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Se souvenir de moi</label>
                 </div>
                 <div class="login-actions">
-                    <button type="submit" class="btn btn-primary">Continue</button>
+                    <button type="submit" class="btn btn-primary">Continuer</button>
 
-                    <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" class="btn btn-secondary">Back</button>
+                    <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" class="btn btn-secondary">Retour</button>
                 </div>
             </form>
 
@@ -70,33 +70,33 @@
                 <input type="hidden" name="identifier" value="{{ identifier }}">
                 <input type="hidden" name="password_cached" value="{{ password_cached }}">
                 <div class="form-group">
-                    <p class="login-info">2FA required for <strong>{{ identifier }}</strong></p>
+                    <p class="login-info">2FA requis pour <strong>{{ identifier }}</strong></p>
                 </div>
                 <div class="form-group">
-                    <label>Authenticator code:<br>
+                    <label>Code d'authentification :<br>
                         <input type="text" name="totp" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="123456" required>
                     </label>
                 </div>
                 <div class="form-group">
-                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
+                    <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Se souvenir de moi</label>
                 </div>
                 <div class="login-actions">
-                    <button type="submit" class="btn btn-primary">Verify & Sign in</button>
-                    <button type="submit" name="stage" value="password" formaction="{{ url_for('login') }}" class="btn btn-secondary">Back</button>
+                    <button type="submit" class="btn btn-primary">Vérifier et se connecter</button>
+                    <button type="submit" name="stage" value="password" formaction="{{ url_for('login') }}" class="btn btn-secondary">Retour</button>
                 </div>
             </form>
             {% elif current_stage == 'success' %}
             <div class="login-success">
-                <strong>You're signed in.</strong>
-                <p class="login-info">You can now proceed:</p>
+                <strong>Vous êtes connecté.</strong>
+                <p class="login-info">Vous pouvez maintenant continuer :</p>
 
                 <div class="login-actions">
-                    <a href="{{ url_for('profile') }}" class="btn btn-primary">Go to Profile</a>
-                    <a href="{{ url_for('offers') }}" class="btn btn-secondary">Browse Offers</a>
-                    <a href="{{ url_for('home') }}" class="btn btn-secondary">Home</a>
+                    <a href="{{ url_for('profile') }}" class="btn btn-primary">Aller au Profil</a>
+                    <a href="{{ url_for('offers') }}" class="btn btn-secondary">Parcourir les Offres</a>
+                    <a href="{{ url_for('home') }}" class="btn btn-secondary">Accueil</a>
                 </div>
                 <p class="login-note">
-                    Note: navigation bar will reflect your session on the next page you open.
+                    Note : la barre de navigation reflétera votre session sur la prochaine page que vous ouvrirez.
                 </p>
             </div>
             {% endif %}

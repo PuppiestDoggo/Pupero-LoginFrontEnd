@@ -34,7 +34,7 @@
               <a href="{{ url_for('balances') }}">Soldes</a>
               <a href="{{ url_for('trades_list') }}">Mes échanges</a>
               {% if active_trade_id %}
-                <a href="{{ url_for('trade_view', trade_id=active_trade_id) }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">Active trade</a>
+                <a href="{{ url_for('trade_view', trade_id=active_trade_id) }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">Échange actif</a>
               {% endif %}
 
               <!-- MENU PLUS -->
@@ -60,11 +60,11 @@
             {% else %}
               {% if is_admin %}
                 <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">
-                    Disable Admin
+                    Désactiver Admin
                 </a>
               {% else %}
                 <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-danger" style="background-color: #d9534f; color: white;">
-                    Enable Admin
+                    Activer Admin
                 </a>
               {% endif %}
               <a href="{{ url_for('profile') }}" class="btn btn-secondary">Profil</a>
@@ -78,7 +78,7 @@
     {% endif %}
 
     {% if is_admin %}
-    <div style="background:#222;color:#fff;padding:4px 8px;margin:6px 0;">Admin mode is ON (debug)</div>
+    <div style="background:#222;color:#fff;padding:4px 8px;margin:6px 0;">Le mode Admin est ACTIVÉ (debug)</div>
     {% endif %}
 
     <div class="flash">

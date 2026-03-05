@@ -1,23 +1,23 @@
 {% extends 'base.html' %}
-{% block title %}Admin{% endblock %}
+{% block title %}Administration{% endblock %}
 {% block content %}
-<h1>Admin</h1>
-<p>This page requires an administrator account.</p>
+<h1>Administration</h1>
+<p>Cette page nécessite un compte administrateur.</p>
 
-<h2>Join any Matrix conversation</h2>
+<h2>Rejoindre n'importe quelle conversation Matrix</h2>
 <form method="get" action="{{ element_base }}" target="_blank" rel="noopener" style="display:flex;gap:6px;max-width:600px;align-items:center;">
-  <label style="flex:1">Room ID or Alias
-    <input type="text" name="room" placeholder="!room:server or #alias:server" style="width:100%" oninput="document.getElementById('joinLink').href='{{ element_base }}'+this.value;">
+  <label style="flex:1">ID du salon ou Alias
+    <input type="text" name="room" placeholder="!salon:serveur ou #alias:serveur" style="width:100%" oninput="document.getElementById('joinLink').href='{{ element_base }}'+this.value;">
   </label>
-  <a id="joinLink" class="button" href="{{ element_base }}" target="_blank" rel="noopener" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;text-decoration:none;">Open</a>
+  <a id="joinLink" class="button" href="{{ element_base }}" target="_blank" rel="noopener" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;text-decoration:none;">Ouvrir</a>
 </form>
 
 <hr>
-<h2>Users</h2>
+<h2>Utilisateurs</h2>
 {% if users and users|length > 0 %}
 <table border="1" cellpadding="6" cellspacing="0">
   <thead>
-    <tr><th>ID</th><th>Email</th><th>Username</th><th>Role</th><th>Disabled</th><th>Created</th><th>Actions</th></tr>
+    <tr><th>ID</th><th>Email</th><th>Nom d'utilisateur</th><th>Rôle</th><th>Désactivé</th><th>Créé le</th><th>Actions</th></tr>
   </thead>
   <tbody>
   {% for u in users %}
@@ -26,41 +26,41 @@
       <td>{{ u.email }}</td>
       <td>{{ u.username }}</td>
       <td>{{ u.role }}</td>
-      <td>{{ 'yes' if u.is_disabled else 'no' }}</td>
+      <td>{{ 'oui' if u.is_disabled else 'non' }}</td>
       <td>{{ u.created_at }}</td>
       <td>
         <form method="post" style="display:inline">
           <input type="hidden" name="user_id" value="{{ u.id }}">
           {% if u.is_disabled %}
             <input type="hidden" name="action" value="enable">
-            <button type="submit">Enable</button>
+            <button type="submit">Activer</button>
           {% else %}
             <input type="hidden" name="action" value="disable">
-            <button type="submit">Disable</button>
+            <button type="submit">Désactiver</button>
           {% endif %}
         </form>
         <form method="post" style="display:inline">
           <input type="hidden" name="user_id" value="{{ u.id }}">
           <input type="hidden" name="action" value="set_role">
           <select name="role">
-            <option value="user" {% if u.role=='user' %}selected{% endif %}>user</option>
-            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
-            <option value="superadmin" {% if u.role=='superadmin' %}selected{% endif %}>superadmin</option>
+            <option value="user" {% if u.role=='user' %}selected{% endif %}>utilisateur</option>
+            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>administrateur</option>
+            <option value="superadmin" {% if u.role=='superadmin' %}selected{% endif %}>super-administrateur</option>
           </select>
-          <button type="submit">Change role</button>
+          <button type="submit">Changer le rôle</button>
         </form>
         <form method="post" style="display:inline">
           <input type="hidden" name="user_id" value="{{ u.id }}">
           <input type="hidden" name="action" value="logout">
-          <button type="submit">Force logout</button>
+          <button type="submit">Forcer la déconnexion</button>
         </form>
         <details style="display:inline-block;margin-left:6px;">
-          <summary>Reset password</summary>
+          <summary>Réinitialiser le mot de passe</summary>
           <form method="post" style="display:flex;gap:6px;align-items:center;margin-top:4px;">
             <input type="hidden" name="user_id" value="{{ u.id }}">
             <input type="hidden" name="action" value="reset_password">
-            <input type="password" name="new_password" placeholder="New password (min 6)" required>
-            <button type="submit">Set</button>
+            <input type="password" name="new_password" placeholder="Nouveau mot de passe (min 6)" required>
+            <button type="submit">Définir</button>
           </form>
         </details>
       </td>
@@ -69,28 +69,28 @@
   </tbody>
 </table>
 {% else %}
-<p>No users found.</p>
+<p>Aucun utilisateur trouvé.</p>
 {% endif %}
 
 <hr>
-<h2>Balances</h2>
+<h2>Soldes</h2>
 <form method="get" action="{{ url_for('admin_balance') }}" style="display:flex;gap:8px;align-items:center;">
-  <label>User ID <input type="number" name="user_id" min="1" value="{{ last_user_id or '' }}"></label>
-  <button type="submit">View balance</button>
+  <label>ID Utilisateur <input type="number" name="user_id" min="1" value="{{ last_user_id or '' }}"></label>
+  <button type="submit">Voir le solde</button>
 </form>
 {% if balance %}
   <div style="margin-top:8px;">
-    <div><strong>User {{ balance.user_id }}</strong></div>
-    <div>Fake XMR: {{ balance.fake_xmr }}</div>
-    <div>Real XMR: {{ balance.real_xmr }}</div>
+    <div><strong>Utilisateur {{ balance.user_id }}</strong></div>
+    <div>Faux XMR : {{ balance.fake_xmr }}</div>
+    <div>Vrais XMR : {{ balance.real_xmr }}</div>
     <form method="post" action="{{ url_for('admin_balance') }}" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
       <input type="hidden" name="user_id" value="{{ balance.user_id }}">
-      <label>Amount XMR <input type="number" step="0.0000000001" min="0" name="amount_xmr" required></label>
-      <label>Kind
-        <select name="kind"><option value="fake">fake</option><option value="real">real</option></select>
+      <label>Montant XMR <input type="number" step="0.0000000001" min="0" name="amount_xmr" required></label>
+      <label>Type
+        <select name="kind"><option value="fake">faux</option><option value="real">réel</option></select>
       </label>
-      <button type="submit" name="op" value="increase">Increase</button>
-      <button type="submit" name="op" value="decrease">Decrease</button>
+      <button type="submit" name="op" value="increase">Augmenter</button>
+      <button type="submit" name="op" value="decrease">Diminuer</button>
     </form>
   </div>
 {% endif %}

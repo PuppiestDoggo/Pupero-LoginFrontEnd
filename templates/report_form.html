@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container">
-    <h1>Submit a Report</h1>
+    <h1>Soumettre un signalement</h1>
     
     <div class="report-form-container">
         <form id="report-form" method="POST" action="{{ url_for('submit_report') }}">
@@ -81,8 +81,8 @@
 
             <!-- Submit -->
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Submit Report</button>
-                <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Envoyer le signalement</button>
+                <a href="{{ url_for('home') }}" class="btn btn-secondary">Annuler</a>
             </div>
         </form>
     </div>

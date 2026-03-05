@@ -437,10 +437,10 @@ def register():
         try:
             response = requests.post(f'{BACKEND_URL}/register', json=data, timeout=15)
         except Exception as e:
-            flash(f'Registration failed: {e}', 'error')
+            flash(f'L\'inscription a échoué : {e}', 'error')
             return render_template('register.html')
         if response.status_code == 200:
-            flash('Registration successful! Please login.', 'success')
+            flash('Inscription réussie ! Veuillez vous connecter.', 'success')
             return redirect(url_for('login'))
         else:
             try:
@@ -475,7 +475,7 @@ def login():
         # Stage 1 -> move to password stage (no backend call yet)
         if stage == 'identifier':
             if not identifier:
-                flash('Please enter your username or email.', 'error')
+                flash('Veuillez entrer votre nom d\'utilisateur ou votre adresse e-mail.', 'error')
                 stage = 'identifier'
             else:
                 stage = 'password'
@@ -485,11 +485,11 @@ def login():
         if stage == 'password':
             password = request.form.get('password', '')
             if not identifier:
-                flash('Missing identifier. Please start again.', 'error')
+                flash('Identifiant manquant. Veuillez recommencer.', 'error')
                 stage = 'identifier'
                 return render_template('login.html', stage=stage)
             if not password:
-                flash('Please enter your password.', 'error')
+                flash('Veuillez entrer votre mot de passe.', 'error')
                 return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
 
             payload = {'password': password, 'remember_me': remember_flag}
@@ -501,7 +501,7 @@ def login():
                 response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=15)
             except Exception as e:
                 logger.error(json.dumps({"event": "frontend_login_backend_error", "error": str(e), "identifier": identifier}))
-                flash(f'Login failed: {e}', 'error')
+                flash(f'Échec de la connexion : {e}', 'error')
                 return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
 
             # Success straight away (no TOTP required)
@@ -510,7 +510,7 @@ def login():
                     tokens = response.json()
                 except Exception:
                     logger.error(json.dumps({"event": "frontend_login_json_error", "status": response.status_code, "identifier": identifier}))
-                    flash('Login failed: Invalid response from server', 'error')
+                    flash('Connexion échouée : Réponse du serveur non valide', 'error')
                     return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
                 # Set cookies then redirect to home to force full UI refresh (header)
                 resp = make_response(redirect(url_for('home')))
@@ -530,7 +530,7 @@ def login():
                     logger.info(json.dumps({"event": "login_success_frontend", "remember": remember_flag, "client": request.remote_addr, "identifier": identifier}))
                 except Exception:
                     pass
-                flash('Login successful!', 'success')
+                flash('Connexion réussie !', 'success')
                 return resp
 
             # Check if TOTP is required by examining response
@@ -551,9 +551,9 @@ def login():
 
             # Other errors: remain on password stage
             if detail:
-                flash(f'Login failed: {detail}', 'error')
+                flash(f'Connexion échouée : {detail}', 'error')
             else:
-                flash('Login failed. Please try again.', 'error')
+                flash('Connexion échouée. Veuillez réessayer.', 'error')
             return render_template('login.html', stage='password', identifier=identifier, remember_me=remember_flag)
 
         # Stage 3: TOTP verification (submit identifier + password (hidden) + totp)
@@ -561,10 +561,10 @@ def login():
             totp_code = request.form.get('totp', '').strip()
             password = request.form.get('password_cached', '') or request.form.get('password', '')
             if not identifier or not password:
-                flash('Session expired. Please start again.', 'error')
+                flash('Session expirée. Veuillez recommencer.', 'error')
                 return render_template('login.html', stage='identifier')
             if not totp_code:
-                flash('Please enter your 2FA code.', 'error')
+                flash('Veuillez entrer votre code 2FA.', 'error')
                 return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
 
             payload = {'remember_me': remember_flag, 'totp': totp_code, 'password': password}
@@ -575,14 +575,14 @@ def login():
             try:
                 response = requests.post(f'{BACKEND_URL}/login', json=payload, timeout=15)
             except Exception as e:
-                flash(f'Login failed: {e}', 'error')
+                flash(f'Échec de la connexion : {e}', 'error')
                 return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
 
             if response.status_code == 200:
                 try:
                     tokens = response.json()
                 except Exception:
-                    flash('Login failed: Invalid response from server', 'error')
+                    flash('Connexion échouée : Réponse du serveur non valide', 'error')
                     return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
                 # Set cookies then redirect to home to force full UI refresh (header)
                 resp = make_response(redirect(url_for('home')))
@@ -602,7 +602,7 @@ def login():
                     logger.info(json.dumps({"event": "login_cookie_set", "remember": remember_flag, "client": request.remote_addr}))
                 except Exception:
                     pass
-                flash('Login successful!', 'success')
+                flash('Connexion réussie !', 'success')
                 return resp
             else:
                 # Failure: remain on TOTP stage
@@ -610,7 +610,7 @@ def login():
                     detail = response.json().get('detail', response.text)
                 except Exception:
                     detail = response.text or 'Login failed'
-                flash(f'Login failed: {detail}', 'error')
+                flash(f'Connexion échouée : {detail}', 'error')
                 return render_template('login.html', stage='totp', identifier=identifier, password_cached=password, remember_me=remember_flag)
 
     # GET request or fall-through
@@ -666,9 +666,9 @@ def profile():
                                                 "client": request.remote_addr}))
                     except Exception:
                         pass
-                    flash(data.get('message', 'Profile updated!'), 'success')
+                    flash(data.get('message', 'Profil mis à jour !'), 'success')
                     return resp
-                flash(data.get('message', 'Profile updated!'), 'success')
+                flash(data.get('message', 'Profil mis à jour !'), 'success')
             else:
                 try:
                     detail = response.json().get('detail', response.text)
