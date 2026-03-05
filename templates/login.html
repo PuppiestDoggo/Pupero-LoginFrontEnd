@@ -1,9 +1,14 @@
 {% extends 'base.html' %}
 {% set hide_header = True %}
 {% block title %}Login{% endblock %}
-{%block css %}
-<link rel="stylesheet" href="{{url_for('static', filename='css/pages/login.css') }}">
-{% endblock %}
+
+    {%block css %}
+    <!-- CSS components -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/components.css') }}">
+    <!-- CSS login -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/pages/login.css') }}">
+    {% endblock %}
+
 {% block content %}
     {% set current_stage = stage or 'identifier' %}
     <div class="login-grid">
@@ -29,7 +34,8 @@
                 </div>
 
                 <div class="login-actions">
-                    <button type="submit" class="btn-primary">Continue</button>
+                    <button type="submit" class="btn btn-primary">Continue</button>
+                    <a href="{{ url_for('register') }}" class="btn btn-secondary">Inscription</a>
                 </div>
             </form>
 
@@ -52,8 +58,9 @@
                     <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
                 </div>
                 <div class="login-actions">
-                    <button type="submit" class="btn-primary">Continue</button>
-                    <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" class="btn-secondary">Back</button>
+                    <button type="submit" class="btn btn-primary">Continue</button>
+
+                    <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" class="btn btn-secondary">Back</button>
                 </div>
             </form>
 
@@ -74,8 +81,8 @@
                     <label><input type="checkbox" name="remember_me" value="yes" {% if remember_me %}checked{% endif %}> Remember me</label>
                 </div>
                 <div class="login-actions">
-                    <button type="submit" class="btn-primary">Verify & Sign in</button>
-                    <button type="submit" name="stage" value="password" formaction="{{ url_for('login') }}" class="btn-secondary">Back</button>
+                    <button type="submit" class="btn btn-primary">Verify & Sign in</button>
+                    <button type="submit" name="stage" value="password" formaction="{{ url_for('login') }}" class="btn btn-secondary">Back</button>
                 </div>
             </form>
             {% elif current_stage == 'success' %}
@@ -84,9 +91,9 @@
                 <p class="login-info">You can now proceed:</p>
 
                 <div class="login-actions">
-                    <a href="{{ url_for('profile') }}" class="btn-primary">Go to Profile</a>
-                    <a href="{{ url_for('offers') }}" class="btn-secondary">Browse Offers</a>
-                    <a href="{{ url_for('home') }}" class="btn-secondary">Home</a>
+                    <a href="{{ url_for('profile') }}" class="btn btn-primary">Go to Profile</a>
+                    <a href="{{ url_for('offers') }}" class="btn btn-secondary">Browse Offers</a>
+                    <a href="{{ url_for('home') }}" class="btn btn-secondary">Home</a>
                 </div>
                 <p class="login-note">
                     Note: navigation bar will reflect your session on the next page you open.
@@ -95,4 +102,7 @@
             {% endif %}
         </div>
     </div>
+<a href="{{ url_for('home') }}" class="auth-back-btn">← Retour</a>
+
+
 {% endblock %}

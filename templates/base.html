@@ -7,53 +7,62 @@
     <title>{% block title %}Pupero Frontend{% endblock %}</title>
 
     {% block css %}
-    <!-- CSS base -->
-    <link rel="stylesheet" href="{{url_for('static', filename='css/base.css') }}">
     <!-- CSS components -->
     <link rel="stylesheet" href="{{url_for('static', filename='css/components.css') }}">
+    <!-- CSS base -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/base.css') }}">
     {% endblock %}
 
 </head>
 <body>
     {% if not hide_header %}
     <header class="site-header">
-      <div class="nav-inner">
-        <a class="brand" href="{{ url_for('home') }}" aria-label="Pupero home">
-          <img src="{{ url_for('static', filename='login_logo.png') }}" alt="Pupero Logo" onerror="this.style.display='none'">
-          <span class="brand-title">Pupero</span>
-        </a>
-        <div class="spacer"></div>
-        <nav class="nav-links" aria-label="Primary">
-          <a href="{{ url_for('home') }}">Home</a>
-          <a href="{{ url_for('community') }}">Community</a>
-          {% if request.cookies.get('access_token') %}
-              <a href="{{ url_for('offers') }}">Offers</a>
-              <a href="{{ url_for('rates') }}">Rates</a>
-              <a href="/explorer/" target="_blank" rel="noopener">Explorer</a>
-              <a href="{{ url_for('buy') }}">Buy</a>
-              <a href="{{ url_for('sell') }}">Sell</a>
-              <a href="{{ url_for('create_ad') }}">Create Ad</a>
-              <a href="{{ url_for('my_ads') }}">My Ads</a>
-              <a href="{{ url_for('profile') }}">Profile</a>
-              {% if current_username %}<a href="{{ url_for('public_profile', username=current_username) }}">Public Profile</a>{% endif %}
-              <a href="{{ url_for('balances') }}">Balances</a>
-              <a href="{{ url_for('trades_list') }}">My Trades</a>
-              <a href="{{ url_for('admin_page') }}">Admin</a>
-              {% if active_trade_id %}<a href="{{ url_for('trade_current') }}"><strong>Active Trades</strong></a>{% endif %}
-              {% if not totp_enabled %}<a href="{{ url_for('totp_enable') }}">Enable TOTP</a>{% endif %}
-              <a href="{{ url_for('debug_isadmin_toggle') }}">Admin: {{ 'ON' if is_admin else 'OFF' }}</a>
-              <a href="{{ url_for('logout') }}">Logout</a>
-          {% else %}
-              <a href="{{ url_for('register') }}">Register</a>
-              <a href="{{ url_for('login') }}">Login</a>
-              <a href="{{ url_for('password_reset') }}">Reset Password</a>
-              <a href="{{ url_for('rates') }}">Rates</a>
-              <a href="/explorer/" target="_blank" rel="noopener">Explorer</a>
-              <a href="{{ url_for('debug_isadmin_toggle') }}">Admin: {{ 'ON' if is_admin else 'OFF' }}</a>
-          {% endif %}
-        </nav>
-      </div>
+        <div class="nav-inner">
+
+          <!-- Branding -->
+          <a class="brand" href="{{ url_for('home') }}">
+            <img src="{{ url_for('static', filename='login_logo.png') }}" alt="Pupero Logo">
+            <span class="brand-title">Pupero</span>
+          </a>
+
+          <!-- NAV CENTRALE -->
+          <nav class="nav-links nav-center">
+            <a href="{{ url_for('home') }}">Accueil</a>
+
+            {% if request.cookies.get('access_token') %}
+              <a href="{{ url_for('offers') }}">Offres</a>
+              <a href="{{ url_for('balances') }}">Soldes</a>
+              <a href="{{ url_for('trades_list') }}">Mes échanges</a>
+
+              <!-- MENU PLUS -->
+                <div class="nav-dropdown">
+                  <a href="#" class="nav-link">Plus ▾</a>
+
+                  <div class="dropdown-menu">
+                    <a href="{{ url_for('rates') }}">Taux</a>
+                    <a href="/explorer/" target="_blank">Explorer</a>
+                  </div>
+                </div>
+
+              {% else %}
+              <a href="{{ url_for('rates') }}">Taux</a>
+              <a href="/explorer/" target="_blank">Explorer</a>
+              {% endif %}
+          </nav>
+
+          <!-- NAV DROITE (AUTH) -->
+          <nav class="nav-links nav-right">
+            {% if not request.cookies.get('access_token') %}
+              <a href="{{ url_for('login') }}" class="btn btn-secondary">Connexion</a>
+            {% else %}
+              <a href="{{ url_for('profile') }}" class="btn btn-secondary">Profil</a>
+              <a href="{{ url_for('logout') }}" class="btn btn-primary">Déconnexion</a>
+            {% endif %}
+          </nav>
+
+        </div>
     </header>
+
     {% endif %}
 
     {% if is_admin %}
@@ -72,7 +81,7 @@
       {% endwith %}
     </div>
 
-    <main>
+    <main class="main-container">
       {% block content %}{% endblock %}
     </main>
 </body>

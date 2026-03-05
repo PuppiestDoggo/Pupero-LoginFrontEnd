@@ -1,9 +1,73 @@
-@media (max-width: 768px) {
-  .nav-inner {
-    flex-wrap: wrap;
-  }
+/* =====================================================
+   GLOBAL BUTTONS
+   ===================================================== */
 
-  .brand-title {
-    display: none;
-  }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.7rem 1.2rem;
+  border-radius: 10px;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+
+  cursor: pointer;
+  border: none;
+  outline: none;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+
+/* =====================
+   PRIMARY BUTTON
+   ===================== */
+
+.btn-primary {
+  background: rgba(79, 140, 255, 0.15);
+  color: var(--primary, #4f8cff);
+  border: 1px solid rgba(79, 140, 255, 0.35);
+}
+
+.btn-primary:hover {
+  background: var(--primary, #4f8cff);
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* =====================
+   SECONDARY BUTTON
+   ===================== */
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-main, #e5e7eb);
+  border: 1px solid var(--border-soft, rgba(255,255,255,0.15));
+}
+
+.btn-secondary:hover {
+  background: rgba(79, 140, 255, 0.15);
+  color: var(--primary, #4f8cff);
+  border-color: var(--primary, #4f8cff);
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* DANGER (logout) */
+.btn-danger {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.35);
+}
+
+.btn-danger:hover {
+  background: rgba(239,68,68,0.25);
 }

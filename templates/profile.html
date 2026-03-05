@@ -1,105 +1,220 @@
 {% extends 'base.html' %}
-{% block title %}Profile{% endblock %}
+{% block title %}Profil{% endblock %}
+
+    {% block css %}
+    <!-- CSS components -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/components.css') }}">
+    <!-- CSS base -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/base.css') }}">
+    {% endblock %}
+
 {% block content %}
-    <h1>Profile</h1>
-    <p>Username: {{ user.username or '(none)' }} {% if user.username %}<a href="{{ url_for('public_profile', username=user.username) }}">[View Public Profile]</a>{% endif %}</p>
-    <p>Email: {{ user.email }}</p>
-    <p>Role: {{ user.role }}</p>
-    <p>Phrase: {{ user.phrase }}</p>
+<div class="profile-page">
 
-    <h2>Update Phrase</h2>
-    <form method="post">
-        <input type="hidden" name="action" value="update_phrase">
-        <label>New Phrase: <input type="text" name="phrase" required></label><br>
-        <input type="submit" value="Update Phrase">
+  <h1 class="page-title">Mon profil</h1>
+
+  <!-- ===== Informations utilisateur ===== -->
+  <div class="profile-card">
+    <p>
+      <strong>Nom d’utilisateur :</strong> {{ user.username or '(aucun)' }}
+      {% if user.username %}
+        <a class="link"
+           href="{{ url_for('public_profile', username=user.username) }}">
+          Voir le profil public
+        </a>
+      {% endif %}
+    </p>
+    <p><strong>Email :</strong> {{ user.email }}</p>
+    <p><strong>Rôle :</strong> {{ user.role }}</p>
+    <p><strong>Phrase :</strong> {{ user.phrase }}</p>
+  </div>
+
+  <!-- ===== Modifier la phrase ===== -->
+  <div class="profile-card">
+    <h2>Modifier la phrase</h2>
+    <form method="post" class="profile-form">
+      <input type="hidden" name="action" value="update_phrase">
+
+      <label>
+        Nouvelle phrase
+        <input type="text" name="phrase" required>
+      </label>
+
+      <button class="btn btn-primary" type="submit">
+        Mettre à jour
+      </button>
     </form>
+  </div>
 
-    <h2>Change Username</h2>
-    <form method="post">
-        <input type="hidden" name="action" value="change_username">
-        <label>New Username: <input type="text" name="username" required></label><br>
-        <label>Current Password: <input type="password" name="current_password" required></label><br>
-        <input type="submit" value="Change Username">
+  <!-- ===== Changer le nom d’utilisateur ===== -->
+  <div class="profile-card">
+    <h2>Changer le nom d’utilisateur</h2>
+    <form method="post" class="profile-form">
+      <input type="hidden" name="action" value="change_username">
+
+      <label>
+        Nouveau nom d’utilisateur
+        <input type="text" name="username" required>
+      </label>
+
+      <label>
+        Mot de passe actuel
+        <input type="password" name="current_password" required>
+      </label>
+
+      <button class="btn btn-primary" type="submit">
+        Modifier le nom d’utilisateur
+      </button>
     </form>
+  </div>
 
-    <h2>Change Email</h2>
-    <form method="post">
-        <input type="hidden" name="action" value="change_email">
-        <label>New Email: <input type="email" name="new_email" required></label><br>
-        <label>Current Password: <input type="password" name="current_password" required></label><br>
-        <input type="submit" value="Change Email">
+  <!-- ===== Changer l’email ===== -->
+  <div class="profile-card">
+    <h2>Changer l’email</h2>
+    <form method="post" class="profile-form">
+      <input type="hidden" name="action" value="change_email">
+
+      <label>
+        Nouvel email
+        <input type="email" name="new_email" required>
+      </label>
+
+      <label>
+        Mot de passe actuel
+        <input type="password" name="current_password" required>
+      </label>
+
+      <button class="btn btn-primary" type="submit">
+        Modifier l’email
+      </button>
     </form>
+  </div>
 
-    <h2>Change Password</h2>
-    <form method="post">
-        <input type="hidden" name="action" value="change_password">
-        <label>Current Password: <input type="password" name="current_password" required></label><br>
-        <label>New Password: <input type="password" name="new_password" required></label><br>
-        <input type="submit" value="Change Password">
+  <!-- ===== Changer le mot de passe ===== -->
+  <div class="profile-card">
+    <h2>Changer le mot de passe</h2>
+    <form method="post" class="profile-form">
+      <input type="hidden" name="action" value="change_password">
+
+      <label>
+        Mot de passe actuel
+        <input type="password" name="current_password" required>
+      </label>
+
+      <label>
+        Nouveau mot de passe
+        <input type="password" name="new_password" required>
+      </label>
+
+      <button class="btn btn-primary" type="submit">
+        Modifier le mot de passe
+      </button>
     </form>
+  </div>
 
-    <h2>Two-Factor Authentication (2FA)</h2>
+  <!-- ===== Authentification à deux facteurs ===== -->
+  <div class="profile-card">
+    <h2>Authentification à deux facteurs (2FA)</h2>
+
     {% if totp_enabled %}
-        <p>Status: <strong>Enabled</strong></p>
-        <form method="post" action="{{ url_for('totp_disable') }}">
-            <button type="submit" onclick="return confirm('Disable 2FA?');">Disable 2FA</button>
-        </form>
+      <p class="status enabled">Statut : activée</p>
+      <form method="post" action="{{ url_for('totp_disable') }}">
+        <button class="btn-danger" type="submit"
+          onclick="return confirm('Désactiver la double authentification ?');">
+          Désactiver la 2FA
+        </button>
+      </form>
     {% else %}
-        <p>Status: <strong>Disabled</strong></p>
-        <p><a href="{{ url_for('totp_enable') }}">Enable 2FA (TOTP)</a></p>
+      <p class="status disabled">Statut : désactivée</p>
+      <a class="btn-secondary" href="{{ url_for('totp_enable') }}">
+        Activer la 2FA (TOTP)
+      </a>
     {% endif %}
+  </div>
 
-    <h2>Active Sessions by IP</h2>
+  <!-- ===== Sessions actives ===== -->
+  <div class="profile-card">
+    <h2>Sessions actives</h2>
+
     {% if sessions and sessions|length > 0 %}
-        <table border="1" cellpadding="5">
-            <thead>
-                <tr><th>IP</th><th>User Agent</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-                {% for s in sessions %}
-                <tr>
-                    <td>{{ s.ip }}</td>
-                    <td style="max-width:400px; overflow-wrap:anywhere;">{{ s.user_agent }}</td>
-                    <td>
-                        <form method="post" action="{{ url_for('close_session') }}" style="display:inline;">
-                            <input type="hidden" name="ip" value="{{ s.ip }}">
-                            <input type="hidden" name="current" value="{{ '1' if s.current else '0' }}">
-                            <button type="submit">Close</button>
-                        </form>
-                        <form method="post" action="{{ url_for('report_session') }}" style="display:inline; margin-left:8px;">
-                            <input type="hidden" name="ip" value="{{ s.ip }}">
-                            <button type="submit">Report to Admin</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No active sessions detected.</p>
-    {% endif %}
+    <table class="sessions-table">
+      <thead>
+        <tr>
+          <th>IP</th>
+          <th>Navigateur / appareil</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>{{ s.ip }}</td>
+          <td class="ua">{{ s.user_agent }}</td>
+          <td class="actions">
+            <form method="post" action="{{ url_for('close_session') }}">
+              <input type="hidden" name="ip" value="{{ s.ip }}">
+              <input type="hidden" name="current"
+                     value="{{ '1' if s.current else '0' }}">
+              <button class="btn-secondary">
+                Fermer
+              </button>
+            </form>
 
-    <h2>Reviews</h2>
-    {% if reviews_summary %}
-        <p>Average Rating: {{ '%.1f'|format(reviews_summary.average_rating) }} / 5 ({{ reviews_summary.count }} reviews)</p>
-        {% if reviews_summary.reviews %}
-            <ul>
-            {% for r in reviews_summary.reviews %}
-                <li>
-                    <strong>{{ r.rating }}/5</strong> by <strong>{{ r.reviewer_username }}</strong> - {{ r.comment }} 
-                    <small>({{ r.created_at }})</small>
-                    {% if user.role in ['admin', 'superadmin'] %}
-                        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
-                           <button type="submit" onclick="return confirm('Delete this review (Admin)?')" style="color:red; font-size:0.8em;">Delete</button>
-                        </form>
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p>No reviews yet.</p>
-        {% endif %}
+            <form method="post" action="{{ url_for('report_session') }}">
+              <input type="hidden" name="ip" value="{{ s.ip }}">
+              <button class="btn-danger">
+                Signaler
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
-        <p>No reviews loaded.</p>
+      <p>Aucune session active détectée.</p>
     {% endif %}
+  </div>
+
+  <!-- ===== Avis ===== -->
+  <div class="profile-card">
+    <h2>Avis</h2>
+
+    {% if reviews_summary %}
+      <p class="rating">
+        ⭐ {{ '%.1f'|format(reviews_summary.average_rating) }}/5
+        ({{ reviews_summary.count }} avis)
+      </p>
+
+      {% if reviews_summary.reviews %}
+      <ul class="reviews-list">
+        {% for r in reviews_summary.reviews %}
+        <li>
+          <strong>{{ r.rating }}/5</strong>
+          — {{ r.comment }}
+          <small>
+            par {{ r.reviewer_username }} · {{ r.created_at }}
+          </small>
+
+          {% if user.role in ['admin', 'superadmin'] %}
+          <form method="post"
+                action="{{ url_for('delete_review', review_id=r.id) }}">
+            <button class="btn-danger small"
+                    onclick="return confirm('Supprimer cet avis ?')">
+              Supprimer
+            </button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p>Aucun avis pour le moment.</p>
+      {% endif %}
+    {% else %}
+      <p>Aucun avis chargé.</p>
+    {% endif %}
+  </div>
+
+</div>
 {% endblock %}

@@ -1,6 +1,6 @@
-/* =========================
+/* =====================================================
    THEME GLOBAL
-========================= */
+===================================================== */
 :root {
   --bg-main: #0e1117;
   --bg-header: #111827;
@@ -15,10 +15,9 @@
   --border-soft: rgba(255,255,255,0.08);
 }
 
-
-/* =========================
-   RESET + BODY
-========================= */
+/* =====================================================
+   RESET
+===================================================== */
 * {
   box-sizing: border-box;
 }
@@ -28,93 +27,404 @@ html, body {
   padding: 0;
 }
 
-
-/* =========================
+/* =====================================================
    BODY
-========================= */
+===================================================== */
 body {
   min-height: 100vh;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
   color: var(--text-main);
-
   background:
     radial-gradient(1200px 600px at 10% -20%, rgba(79,140,255,0.12), transparent 45%),
     radial-gradient(800px 400px at 90% 10%, rgba(56,189,248,0.10), transparent 40%),
     var(--bg-main);
 }
 
-
-/* =========================
+/* =====================================================
    HEADER
-========================= */
+===================================================== */
 .site-header {
   background: var(--bg-header);
   border-bottom: 1px solid var(--border-soft);
 }
 
+/* Layout : gauche / centre / droite */
 .nav-inner {
   max-width: 1200px;
   margin: 0 auto;
   padding: 14px 20px;
 
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 20px;
 }
 
-
-/* =========================
-   BRAND
-========================= */
+/* =====================================================
+   BRANDING
+   ===================================================== */
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 0.4rem;
+  text-decoration: none;
+  color: var(--text-main);
 }
 
 .brand img {
-  height: 42px;
+  height: 28px;
 }
 
 .brand-title {
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
+/* =====================================================
+   NAVIGATION CENTRALE
+===================================================== */
+.nav-center {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
 
-/* =========================
-   NAV LINKS
-========================= */
-.nav-links a {
-  color: var(--text-muted);
+.nav-center a {
+  padding: 6px 14px;
+  border-radius: 8px;
   font-size: 0.95rem;
+  text-decoration: none;
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s;
 }
 
-.nav-links a:hover {
+.nav-center a:hover {
+  background: rgba(79,140,255,0.15);
   color: var(--primary);
 }
 
+/* =====================================================
+   NAVIGATION DROITE (AUTH)
+===================================================== */
+.nav-right {
+  display: flex;
+  gap: 10px;
+}
 
-/* =========================
+
+/* =====================================================
    MAIN CONTENT
-========================= */
-main {
+===================================================== */
+.main-container {
   max-width: 1200px;
   margin: 24px auto;
   padding: 0 20px;
 }
 
 
-/* =========================
+/* =====================================================
    RESPONSIVE
-========================= */
+===================================================== */
 @media (max-width: 768px) {
   .nav-inner {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .nav-center {
     flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .nav-right {
+    justify-content: center;
   }
 
   .brand-title {
     display: none;
   }
+}
+
+/* =====================================================
+   HEADER – BUTTON VISIBILITY FIX
+   ===================================================== */
+
+.site-header .btn-secondary {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-soft);
+}
+
+.site-header .btn-secondary:hover {
+  background: rgba(79, 140, 255, 0.18);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* =====================================================
+   PROFILE PAGE
+===================================================== */
+
+.profile-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* ===== Titres ===== */
+.page-title {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  font-weight: 600;
+}
+
+/* ===== Cards ===== */
+.profile-card {
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* ===== Liens ===== */
+.profile-card .link {
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.profile-card .link:hover {
+  text-decoration: underline;
+}
+
+/* ===== Formulaires ===== */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 0.4rem;
+}
+
+.profile-form input {
+  background-color: var(--bg-main);
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  color: var(--text-main);
+}
+
+.profile-form input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* ===== Boutons (réutilise ton style global) ===== */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  align-self: flex-start;
+}
+
+/* ===== 2FA status ===== */
+.status {
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+
+.status.enabled {
+  color: #4ade80;
+}
+
+.status.disabled {
+  color: #f87171;
+}
+
+/* ===== Sessions ===== */
+.sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.sessions-table th,
+.sessions-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 0.9rem;
+}
+
+.sessions-table th {
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.sessions-table .ua {
+  max-width: 360px;
+  word-break: break-word;
+}
+
+.sessions-table .actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ===== Avis ===== */
+.rating {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.reviews-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.reviews-list li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 0.9rem;
+}
+
+.reviews-list small {
+  display: block;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+/* ===== Bouton danger small ===== */
+.btn-danger.small {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  margin-top: 0.3rem;
+}
+
+/* =========================
+   OFFERS PAGE
+========================= */
+
+.offers-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+/* =========================
+   CREATE AD – CENTERED BLOCKS
+========================= */
+
+.create-ad-form {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.form-block {
+  background: var(--bg-card, #111827);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-block h3 {
+  margin-bottom: 1rem;
+  font-size: 1.05rem;
+}
+
+.form-field {
+  margin-bottom: 1rem;
+}
+
+.form-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-hint {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.result-price {
+  font-weight: 600;
+}
+
+.form-actions {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* =========================
+   CREATE AD – SELECT WIDTH
+========================= */
+
+.create-ad-form select {
+  width: 100%;
+  max-width: 320px;
+}
+.create-ad-form input[type="number"] {
+  max-width: 220px;
+}
+.create-ad-form select {
+  padding-right: 2rem;
+}
+
+/* ================================
+   DROPDOWN NAV - "PLUS"
+   ================================ */
+
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown .nav-link {
+    cursor: pointer;
+}
+/* Aligner le bouton "Plus" comme les autres liens */
+.nav-dropdown {
+    display: flex;
+    align-items: center;
+}
+
+/* Menu caché */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 160px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    box-shadow: var(--shadow-sm);
+    padding: 0.4rem 0;
+    display: none;
+    z-index: 1000;
+}
+
+/* Liens du menu */
+.dropdown-menu a {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.dropdown-menu a:hover {
+    background: var(--bg-hover);
+}
+
+/* Ouverture au hover */
+.nav-dropdown:hover .dropdown-menu {
+    display: block;
 }
 

@@ -41,7 +41,6 @@ body::before {
 }
 
 
-
 /* =========================
    FORCE FULLSCREEN
 ========================= */
@@ -149,42 +148,6 @@ main {
   margin-top: 1.2rem;
 }
 
-/* primary */
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-  color: #fff;
-
-  border: none;
-  border-radius: 10px;
-  padding: 0.75rem 1.2rem;
-
-  font-weight: 600;
-  cursor: pointer;
-
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(99,102,241,0.35);
-}
-
-/* secondary */
-.btn-secondary {
-  background: transparent;
-  border: 1px solid var(--border-soft);
-  color: var(--text-main);
-
-  border-radius: 10px;
-  padding: 0.75rem 1.2rem;
-
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background: rgba(255,255,255,0.05);
-}
-
 /* =========================
    INFO / NOTES
 ========================= */
@@ -226,4 +189,40 @@ main {
   .login-right {
     margin: 0 auto;
   }
+}
+
+
+/* =========================
+   AUTH BACK BUTTON
+========================= */
+
+.auth-back-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 10px 14px;
+
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+
+  color: var(--text-main);
+  font-size: 0.85rem;
+  text-decoration: none;
+
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+
+  transition: transform 0.15s ease, background 0.15s ease;
+  z-index: 100;
+}
+
+.auth-back-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(30, 41, 59, 0.95);
 }

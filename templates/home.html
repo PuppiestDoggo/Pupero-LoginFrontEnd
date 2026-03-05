@@ -1,30 +1,44 @@
 {% extends 'base.html' %}
-{% block title %}Home{% endblock %}
+{% block title %}Accueil{% endblock %}
+
+{% block extra_css %}
+    <!-- CSS components -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/components.css') }}">
+    <!-- CSS home -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/home.css') }}">
+{% endblock %}
+
 {% block content %}
-    <h1>Welcome to Pupero</h1>
-    <p>This is a simple front page to try Monero features in the demo stack.</p>
+    <h1>Bienvenue sur Pupero</h1>
+    <p>
+        Ceci est une page d’accueil simple permettant de tester les fonctionnalités Monero
+        dans l’environnement de démonstration du projet.
+    </p>
 
     <section>
-      <h2>Quick actions</h2>
+      <h2>Actions rapides</h2>
       <ul>
         {% if request.cookies.get('access_token') %}
-          <li><a href="{{ url_for('balances') }}">Check your demo XMR balances</a></li>
-          <li><a href="{{ url_for('offers') }}">Browse offers</a></li>
-          <li><a href="{{ url_for('profile') }}">Manage your profile and 2FA</a></li>
+          <li><a href="{{ url_for('balances') }}" class="btn btn-primary">Consulter vos soldes XMR de démonstration</a></li>
+          <li><a href="{{ url_for('offers') }}" class="btn btn-secondary">Parcourir les offres</a></li>
+          <li><a href="{{ url_for('profile') }}" class="btn btn-secondary">Gérer votre profil et la double authentification (2FA)</a></li>
         {% else %}
-          <li><a href="{{ url_for('register') }}">Create an account</a></li>
-          <li><a href="{{ url_for('login') }}">Login to access wallet and offers</a></li>
+          <a href="{{ url_for('register') }}" class="btn btn-secondary">Créer un compte</a>
+          <a href="{{ url_for('login') }}" class="btn btn-secondary">Se connecter pour accéder au portefeuille et aux offres</a>
         {% endif %}
       </ul>
     </section>
 
     <section>
-      <h2>Try Monero (Demo)</h2>
-      <p>Use the demo Transactions service to credit your fake XMR and simulate transfers between users.</p>
+      <h2>Tester Monero (démonstration)</h2>
+      <p>
+          Utilisez le service de transactions de démonstration pour créditer de faux XMR
+          et simuler des transferts entre utilisateurs.
+      </p>
       <ol>
-        <li>Register and Login.</li>
-        <li>Go to Balances to view your fake/real XMR.</li>
-        <li>Increase your fake XMR balance, then try a transfer.</li>
+        <li>Créer un compte et se connecter.</li>
+        <li>Accéder à la page des soldes pour consulter vos XMR fictifs ou réels.</li>
+        <li>Augmenter votre solde de démonstration, puis tester un transfert.</li>
       </ol>
     </section>
 {% endblock %}

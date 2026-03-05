@@ -2,9 +2,12 @@
 {% set hide_header = True %}
 {% block title %}Enregistrer{% endblock %}
 
-{% block css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/login.css') }}">
-{% endblock %}
+    {%block css %}
+    <!-- CSS components -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/components.css') }}">
+    <!-- CSS login -->
+    <link rel="stylesheet" href="{{url_for('static', filename='css/pages/login.css') }}">
+    {% endblock %}
 
 {% block content %}
 <div class="login-grid">
@@ -39,7 +42,7 @@
       </div>
 
       <div class="login-actions">
-        <button type="submit" class="btn-primary">
+        <button type="submit" class="btn btn-primary">
           Créer un compte
         </button>
       </div>
@@ -47,9 +50,11 @@
 
     <p class="login-note">
       Vous avez déjà un compte ?
-      <a href="{{ url_for('login') }}">Login</a>
+      <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
     </p>
   </div>
 
 </div>
+<a href="{{ url_for('home') }}" class="auth-back-btn">← Retour</a>
+
 {% endblock %}
