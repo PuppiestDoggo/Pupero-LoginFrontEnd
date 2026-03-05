@@ -52,10 +52,12 @@
   background: var(--secondary);
   color: var(--text-inv);
   border: 1px solid var(--secondary);
+  transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  filter: brightness(1.1);
+  background: #475569;
+  border-color: #475569;
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
@@ -73,13 +75,16 @@
 
 /* DANGER (logout) */
 .btn-danger {
-  background: var(--danger);
-  color: var(--text-inv);
-  border: 1px solid var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .btn-danger:hover {
-  filter: brightness(1.1);
+  background: var(--danger);
+  color: var(--text-inv);
+  border-color: var(--danger);
+  transform: translateY(-1px);
 }
 
 .btn-warning {

@@ -4,19 +4,20 @@
 
 .hero-section {
     text-align: center;
-    padding: 4rem 1rem;
-    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    padding: 6rem 1rem;
+    background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 80%);
     border-radius: var(--radius-lg);
-    margin-bottom: 3rem;
+    margin-bottom: 4rem;
 }
 
 .hero-section h1 {
-    font-size: 3rem;
+    font-size: 3.5rem;
     font-weight: 800;
     margin-bottom: 1.5rem;
-    background: linear-gradient(to right, #60a5fa, #3b82f6);
+    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
 }
 
 .hero-subtitle {
@@ -43,11 +44,12 @@
 
 .feature-card {
     background: var(--bg-card);
-    padding: 2.5rem 2rem;
+    padding: 3rem 2rem;
     border-radius: var(--radius-lg);
     text-align: center;
     border: 1px solid var(--border-soft);
-    transition: transform 0.3s ease, border-color 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
 }
 
 .feature-card:hover {

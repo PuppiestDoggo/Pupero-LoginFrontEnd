@@ -2,11 +2,11 @@
    VARIABLES (login scope)
 ========================= */
 :root {
-  --bg-main: #0b0e14;
-  --bg-card: #1c2128;
-  --border-soft: rgba(255, 255, 255, 0.1);
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
+  --bg-main: #0b0f1a;
+  --bg-card: #1e293b;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
   --primary: #3b82f6;
   --primary-hover: #2563eb;
 }
@@ -132,8 +132,9 @@ main {
 }
 
 .login-form input:focus {
-  border-color: #f97316;
-  box-shadow: 0 0 0 2px rgba(249,115,22,0.25);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  outline: none;
 }
 
 .login-form input[type="checkbox"] {
