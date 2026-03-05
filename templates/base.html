@@ -55,6 +55,9 @@
             {% if not request.cookies.get('access_token') %}
               <a href="{{ url_for('login') }}" class="btn btn-secondary">Connexion</a>
             {% else %}
+              <a href="{{ url_for('debug_admin_full_enable') }}" class="btn btn-danger" style="background-color: #d9534f; color: white;">
+                  Enable Full Admin
+              </a>
               <a href="{{ url_for('profile') }}" class="btn btn-secondary">Profil</a>
               <a href="{{ url_for('logout') }}" class="btn btn-primary">Déconnexion</a>
             {% endif %}

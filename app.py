@@ -1156,6 +1156,37 @@ def debug_isadmin_off():
     return resp
 
 
+@app.route('/debug/admin/full-enable')
+def debug_admin_full_enable():
+    headers = get_auth_headers()
+    if not headers:
+        flash('Please log in first to become a real admin.', 'warning')
+        return redirect(url_for('login'))
+
+    uid = _get_logged_in_user_id()
+    resp = make_response(redirect(request.referrer or url_for('home')))
+
+    # 1. Set Demo Admin Cookie
+    try:
+        resp.set_cookie('isadmin', '1', max_age=60*60*24*30,
+                        samesite=SESSION_COOKIE_SAMESITE, secure=SECURE_COOKIES)
+    except Exception:
+        resp.set_cookie('isadmin', '1')
+
+    # 2. Set Real Admin Role in Backend
+    try:
+        r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/role",
+                          json={"role": "admin"}, headers=headers, timeout=10)
+        if r.status_code == 200:
+            flash('Full Admin privileges granted (Demo + Real)!', 'success')
+        else:
+            flash(f'Demo Admin enabled, but Real Admin failed: {r.text}', 'warning')
+    except Exception as e:
+        flash(f'Demo Admin enabled, but error reaching backend: {e}', 'warning')
+
+    return resp
+
+
 # Offers integration
 @app.route('/offers', methods=['GET'])
 def offers():
