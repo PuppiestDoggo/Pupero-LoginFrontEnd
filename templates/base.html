@@ -33,6 +33,9 @@
               <a href="{{ url_for('offers') }}">Offres</a>
               <a href="{{ url_for('balances') }}">Soldes</a>
               <a href="{{ url_for('trades_list') }}">Mes échanges</a>
+              {% if active_trade_id %}
+                <a href="{{ url_for('trade_view', trade_id=active_trade_id) }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">Active trade</a>
+              {% endif %}
 
               <!-- MENU PLUS -->
                 <div class="nav-dropdown">
