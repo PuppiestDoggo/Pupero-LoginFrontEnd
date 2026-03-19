@@ -103,7 +103,7 @@
     </main>
 
     <!-- Consentement Cookies (RGPD) -->
-    <div id="cookie-banner" class="cookie-banner" style="display: none;">
+    <div id="cookie-banner" class="cookie-banner">
         <div class="cookie-content">
             <div class="cookie-text">
                 <strong>Respect de votre vie privée</strong>
@@ -132,21 +132,21 @@
             const acceptBtn = document.getElementById('accept-cookies');
             const declineBtn = document.getElementById('decline-cookies');
 
-            if (localStorage.getItem('cookie-consent')) {
+            // Vérifier le consentement et le paramètre de reset
+            const hasConsent = localStorage.getItem('cookie-consent');
+            const forceReset = window.location.search.includes('reset_cookies=1');
+
+            if (hasConsent && !forceReset) {
                 banner.style.display = 'none';
             } else {
+                if (forceReset) {
+                    localStorage.removeItem('cookie-consent');
+                }
+                
+                // Forcer l'affichage
                 banner.style.display = 'block';
-                // Ajout d'une petite animation d'entrée
-                setTimeout(() => {
-                    banner.style.opacity = '1';
-                    banner.style.transform = 'translateY(0)';
-                }, 100);
-            }
-
-            // Pour la démo : permettre de forcer l'affichage avec ?reset_cookies=1
-            if (window.location.search.includes('reset_cookies=1')) {
-                localStorage.removeItem('cookie-consent');
-                banner.style.display = 'block';
+                
+                // Déclencher l'animation après un court délai pour s'assurer du rendu
                 setTimeout(() => {
                     banner.style.opacity = '1';
                     banner.style.transform = 'translateY(0)';
