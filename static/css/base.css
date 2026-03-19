@@ -195,6 +195,11 @@ body {
   gap: 0.4rem;
   text-decoration: none;
   color: var(--text-main);
+  transition: var(--transition-bounce);
+}
+
+.brand:hover {
+  transform: scale(1.05);
 }
 
 .brand img {
@@ -274,7 +279,7 @@ body {
 
 /* On utilise les styles .alert de components.css pour les flash messages */
 .flash-message {
-    animation: slideDown var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
+    animation: toastIn var(--transition-bounce) forwards;
 }
 
 .flash-message.error, .flash-message.danger {
@@ -300,7 +305,7 @@ body {
 @keyframes toastIn {
     from { 
         opacity: 0; 
-        transform: translateX(100%) scale(0.9); 
+        transform: translateX(50px) scale(0.9); 
     }
     to { 
         opacity: 1; 

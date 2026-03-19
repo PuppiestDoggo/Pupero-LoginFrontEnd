@@ -86,7 +86,7 @@
     {% endif %}
 
     {% if is_admin %}
-    <div style="background:var(--danger);color:var(--text-inv);padding:4px 12px;text-align:center;font-size:0.75rem;font-weight:600;letter-spacing:0.05em;">CONSOLE D'ADMINISTRATION</div>
+    <div class="glass animate-slide-down" style="background:rgba(239, 68, 68, 0.2);color:var(--text-inv);padding:8px 12px;text-align:center;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;border-bottom:1px solid rgba(239, 68, 68, 0.3);">CONSOLE D'ADMINISTRATION</div>
     {% endif %}
 
     <div id="flash-container" class="flash-container">
@@ -102,7 +102,7 @@
       {% endwith %}
     </div>
 
-    <main class="main-container">
+    <main class="main-container animate-fade-in">
       {% block content %}{% endblock %}
     </main>
 

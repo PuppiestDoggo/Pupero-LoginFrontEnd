@@ -3,12 +3,12 @@
 
 {% block content %}
 <div class="container-narrow">
-    <div class="page-header">
-        <h1>Annuaire de la communauté</h1>
+    <div class="page-header animate-fade-in">
+        <h1 class="text-gradient">Annuaire de la communauté</h1>
         <p class="text-muted">Recherchez des traders de confiance sur Pupero.</p>
     </div>
 
-    <div class="search-section card-modern">
+    <div class="search-section card-modern glass animate-slide-up">
         <form method="get" action="{{ url_for('community') }}" class="search-form">
             <div class="search-input-wrapper">
                 <input type="text" name="q" value="{{ q }}" placeholder="Rechercher un utilisateur par nom..." class="form-input search-input">
@@ -20,7 +20,7 @@
     {% if users %}
         <div class="users-grid">
             {% for u in users %}
-                <div class="user-card card-modern">
+                <div class="user-card card-modern glass animate-scale-in" style="animation-delay: {{ loop.index0 * 100 }}ms;">
                     <div class="user-info">
                         <div class="user-header">
                             <h3>{{ u.username }}</h3>

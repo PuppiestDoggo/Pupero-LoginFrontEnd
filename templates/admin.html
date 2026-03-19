@@ -1,103 +1,138 @@
 {% extends 'base.html' %}
 {% block title %}Administration{% endblock %}
 {% block content %}
-<h1>Administration</h1>
-<p>Cette page nécessite un compte administrateur.</p>
+<h1 class="text-gradient animate-fade-in">Administration</h1>
+<p class="animate-fade-in" style="margin-bottom: 2rem;">Cette page nécessite un compte administrateur.</p>
 
-<h2>Rejoindre n'importe quelle conversation Matrix</h2>
-<form method="get" action="{{ element_base }}" target="_blank" rel="noopener" style="display:flex;gap:6px;max-width:600px;align-items:center;">
-  <label style="flex:1">ID du salon ou Alias
-    <input type="text" name="room" placeholder="!salon:serveur ou #alias:serveur" style="width:100%" oninput="document.getElementById('joinLink').href='{{ element_base }}'+this.value;">
-  </label>
-  <a id="joinLink" class="button" href="{{ element_base }}" target="_blank" rel="noopener" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;text-decoration:none;">Ouvrir</a>
-</form>
+<div class="wallet-card glass animate-slide-up" style="margin-bottom: 2rem;">
+  <h2 class="text-gradient">Rejoindre n'importe quelle conversation Matrix</h2>
+  <form method="get" action="{{ element_base }}" target="_blank" rel="noopener" class="transfer-form" style="max-width: 100%;">
+    <div class="form-group" style="flex: 1;">
+      <label>ID du salon ou Alias</label>
+      <input type="text" name="room" placeholder="!salon:serveur ou #alias:serveur" oninput="document.getElementById('joinLink').href='{{ element_base }}'+this.value;">
+    </div>
+    <a id="joinLink" class="btn btn-primary" href="{{ element_base }}" target="_blank" rel="noopener">Ouvrir dans Element</a>
+  </form>
+</div>
 
-<hr>
-<h2>Utilisateurs</h2>
-{% if users and users|length > 0 %}
-<table border="1" cellpadding="6" cellspacing="0">
-  <thead>
-    <tr><th>ID</th><th>Email</th><th>Nom d'utilisateur</th><th>Rôle</th><th>Désactivé</th><th>Créé le</th><th>Actions</th></tr>
-  </thead>
-  <tbody>
-  {% for u in users %}
-    <tr>
-      <td>{{ u.id }}</td>
-      <td>{{ u.email }}</td>
-      <td>{{ u.username }}</td>
-      <td>{{ u.role }}</td>
-      <td>{{ 'oui' if u.is_disabled else 'non' }}</td>
-      <td>{{ u.created_at }}</td>
-      <td>
-        <form method="post" style="display:inline">
-          <input type="hidden" name="user_id" value="{{ u.id }}">
-          {% if u.is_disabled %}
-            <input type="hidden" name="action" value="enable">
-            <button type="submit">Activer</button>
-          {% else %}
-            <input type="hidden" name="action" value="disable">
-            <button type="submit">Désactiver</button>
-          {% endif %}
-        </form>
-        <form method="post" style="display:inline">
-          <input type="hidden" name="user_id" value="{{ u.id }}">
-          <input type="hidden" name="action" value="set_role">
-          <select name="role">
-            <option value="user" {% if u.role=='user' %}selected{% endif %}>utilisateur</option>
-            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>administrateur</option>
-            <option value="superadmin" {% if u.role=='superadmin' %}selected{% endif %}>super-administrateur</option>
-          </select>
-          <button type="submit">Changer le rôle</button>
-        </form>
-        <form method="post" style="display:inline">
-          <input type="hidden" name="user_id" value="{{ u.id }}">
-          <input type="hidden" name="action" value="logout">
-          <button type="submit">Forcer la déconnexion</button>
-        </form>
-        <form method="post" style="display:inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT ce compte ? Cette action est irréversible.');">
-          <input type="hidden" name="user_id" value="{{ u.id }}">
-          <input type="hidden" name="action" value="delete">
-          <button type="submit" style="background-color: var(--danger); color: white;">Supprimer</button>
-        </form>
-        <details style="display:inline-block;margin-left:6px;">
-          <summary>Réinitialiser le mot de passe</summary>
-          <form method="post" style="display:flex;gap:6px;align-items:center;margin-top:4px;">
-            <input type="hidden" name="user_id" value="{{ u.id }}">
-            <input type="hidden" name="action" value="reset_password">
-            <input type="password" name="new_password" placeholder="Nouveau mot de passe (min 6)" required>
-            <button type="submit">Définir</button>
-          </form>
-        </details>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>Aucun utilisateur trouvé.</p>
-{% endif %}
-
-<hr>
-<h2>Soldes</h2>
-<form method="get" action="{{ url_for('admin_balance') }}" style="display:flex;gap:8px;align-items:center;">
-  <label>ID Utilisateur <input type="number" name="user_id" min="1" value="{{ last_user_id or '' }}"></label>
-  <button type="submit">Voir le solde</button>
-</form>
-{% if balance %}
-  <div style="margin-top:8px;">
-    <div><strong>Utilisateur {{ balance.user_id }}</strong></div>
-    <div>Faux XMR : {{ balance.fake_xmr }}</div>
-    <div>Vrais XMR : {{ balance.real_xmr }}</div>
-    <form method="post" action="{{ url_for('admin_balance') }}" style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
-      <input type="hidden" name="user_id" value="{{ balance.user_id }}">
-      <label>Montant XMR <input type="number" step="0.0001" min="0.0001" name="amount_xmr" required></label>
-      <label>Type
-        <select name="kind"><option value="fake">faux</option><option value="real">réel</option></select>
-      </label>
-      <button type="submit" name="op" value="increase">Augmenter</button>
-      <button type="submit" name="op" value="decrease">Diminuer</button>
-    </form>
+<div class="wallet-card glass animate-slide-up" style="animation-delay: 100ms; margin-bottom: 2rem;">
+  <h2 class="text-gradient">Utilisateurs</h2>
+  {% if users and users|length > 0 %}
+  <div class="table-responsive">
+    <table class="modern-table">
+      <thead>
+        <tr><th>ID</th><th>Email</th><th>Nom d'utilisateur</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.username }}</td>
+          <td><span class="status-badge active">{{ u.role }}</span></td>
+          <td>
+            {% if u.is_disabled %}
+              <span class="status-badge disabled">Désactivé</span>
+            {% else %}
+              <span class="status-badge active">Actif</span>
+            {% endif %}
+          </td>
+          <td style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <form method="post" style="display:inline">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              {% if u.is_disabled %}
+                <input type="hidden" name="action" value="enable">
+                <button type="submit" class="btn btn-outline btn-sm">Activer</button>
+              {% else %}
+                <input type="hidden" name="action" value="disable">
+                <button type="submit" class="btn btn-outline btn-sm">Désactiver</button>
+              {% endif %}
+            </form>
+            <form method="post" style="display:inline; display: flex; gap: 4px;">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <input type="hidden" name="action" value="set_role">
+              <select name="role" class="form-select btn-sm" style="padding: 2px 4px; height: auto;">
+                <option value="user" {% if u.role=='user' %}selected{% endif %}>User</option>
+                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
+                <option value="superadmin" {% if u.role=='superadmin' %}selected{% endif %}>Super</option>
+              </select>
+              <button type="submit" class="btn btn-outline btn-sm">OK</button>
+            </form>
+            <form method="post" style="display:inline">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <input type="hidden" name="action" value="logout">
+              <button type="submit" class="btn btn-outline btn-sm">Kick</button>
+            </form>
+            <form method="post" style="display:inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT ce compte ? Cette action est irréversible.');">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <input type="hidden" name="action" value="delete">
+              <button type="submit" class="btn btn-danger btn-sm">Suppr</button>
+            </form>
+            <details style="display:inline-block;">
+              <summary class="btn btn-outline btn-sm" style="list-style: none;">Pass</summary>
+              <form method="post" style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <input type="hidden" name="action" value="reset_password">
+                <input type="password" name="new_password" placeholder="Min 6" required class="form-input btn-sm">
+                <button type="submit" class="btn btn-primary btn-sm">Set</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
-{% endif %}
+  {% else %}
+    <p class="empty-msg">Aucun utilisateur trouvé.</p>
+  {% endif %}
+</div>
+
+<div class="wallet-card glass animate-slide-up" style="animation-delay: 200ms;">
+  <h2 class="text-gradient">Gestion des Soldes</h2>
+  <form method="get" action="{{ url_for('admin_balance') }}" class="transfer-form" style="margin-bottom: 2rem;">
+    <div class="form-group">
+      <label>ID Utilisateur</label>
+      <input type="number" name="user_id" min="1" value="{{ last_user_id or '' }}" placeholder="Ex: 42">
+    </div>
+    <button type="submit" class="btn btn-primary">Voir le solde</button>
+  </form>
+  
+  {% if balance %}
+    <div class="balance-details-row glass" style="padding: 1.5rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+      <div class="detail-item">
+        <span class="label">Utilisateur</span>
+        <span class="val">{{ balance.user_id }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Faux XMR (DB)</span>
+        <span class="val">{{ balance.fake_xmr }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Vrais XMR (Wallet)</span>
+        <span class="val">{{ balance.real_xmr }}</span>
+      </div>
+    </div>
+    
+    <form method="post" action="{{ url_for('admin_balance') }}" class="transfer-form">
+      <input type="hidden" name="user_id" value="{{ balance.user_id }}">
+      <div class="form-group">
+        <label>Montant XMR</label>
+        <input type="number" step="0.0001" min="0.0001" name="amount_xmr" required placeholder="0.0000">
+      </div>
+      <div class="form-group">
+        <label>Type de solde</label>
+        <select name="kind" class="form-select">
+          <option value="fake">Solde Virtuel (DB)</option>
+          <option value="real">Solde Réel (Monero)</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 1rem; width: 100%;">
+        <button type="submit" name="op" value="increase" class="btn btn-primary" style="flex: 1;">Augmenter</button>
+        <button type="submit" name="op" value="decrease" class="btn btn-danger" style="flex: 1;">Diminuer</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
 
 {% endblock %}

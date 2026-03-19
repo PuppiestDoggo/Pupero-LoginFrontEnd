@@ -16,8 +16,8 @@
             <img class="login-logo" src="{{ url_for('static', filename='login_logo.png') }}" alt="Logo" onerror="this.style.display='none'">
         </div>
 
-        <div class="login-right">
-            <h1>Connexion</h1>
+        <div class="login-right glass animate-slide-up">
+            <h1 class="text-gradient">Connexion</h1>
 
             {% if current_stage == 'identifier' %}
             <form method="post" class="login-form" aria-label="Enter username or email">

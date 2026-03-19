@@ -11,10 +11,10 @@
 {% block content %}
 <div class="profile-page">
 
-  <h1 class="page-title">Mon profil</h1>
+  <h1 class="page-title text-gradient animate-fade-in">Mon profil</h1>
 
   <!-- ===== Informations utilisateur ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up">
     <div class="profile-info-grid">
       <div class="info-item">
         <span class="info-label">Nom d’utilisateur</span>
@@ -39,7 +39,7 @@
   </div>
 
   <!-- ===== Modifier la phrase ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up" style="animation-delay: 100ms;">
     <h2>Modifier la phrase</h2>
     <form method="post" class="profile-form">
       <input type="hidden" name="action" value="update_phrase">
@@ -56,7 +56,7 @@
   </div>
 
   <!-- ===== Changer le nom d’utilisateur ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up" style="animation-delay: 200ms;">
     <h2>Changer le nom d’utilisateur</h2>
     <form method="post" class="profile-form">
       <input type="hidden" name="action" value="change_username">
@@ -78,7 +78,7 @@
   </div>
 
   <!-- ===== Changer l’email ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up" style="animation-delay: 300ms;">
     <h2>Changer l’email</h2>
     <form method="post" class="profile-form">
       <input type="hidden" name="action" value="change_email">
@@ -100,7 +100,7 @@
   </div>
 
   <!-- ===== Changer le mot de passe ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up" style="animation-delay: 400ms;">
     <h2>Changer le mot de passe</h2>
     <form method="post" class="profile-form">
       <input type="hidden" name="action" value="change_password">
@@ -122,7 +122,7 @@
   </div>
 
   <!-- ===== Authentification à deux facteurs ===== -->
-  <div class="profile-card">
+  <div class="profile-card glass animate-slide-up" style="animation-delay: 500ms;">
     <h2>Authentification à deux facteurs (2FA)</h2>
 
     {% if totp_enabled %}
