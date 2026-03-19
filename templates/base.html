@@ -103,7 +103,7 @@
     </main>
 
     <!-- Consentement Cookies (RGPD) -->
-    <div id="cookie-banner" class="cookie-banner" style="display: none;">
+    <div id="cookie-banner" class="cookie-banner">
         <div class="cookie-content">
             <p>Ce site utilise des cookies pour améliorer votre expérience et assurer la sécurité des transactions. En continuant, vous acceptez notre utilisation des cookies.</p>
             <div class="cookie-actions">
@@ -134,30 +134,38 @@
             } else {
                 banner.style.display = 'block';
                 // Ajout d'une petite animation d'entrée
-                setTimeout(() => {
-                    banner.style.opacity = '1';
-                    banner.style.transform = 'translateY(0)';
-                }, 100);
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        banner.style.opacity = '1';
+                        banner.style.transform = 'translateY(0)';
+                    }, 10);
+                });
             }
 
             // Pour la démo : permettre de forcer l'affichage avec ?reset_cookies=1
             if (window.location.search.includes('reset_cookies=1')) {
                 localStorage.removeItem('cookie-consent');
                 banner.style.display = 'block';
-                setTimeout(() => {
-                    banner.style.opacity = '1';
-                    banner.style.transform = 'translateY(0)';
-                }, 100);
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        banner.style.opacity = '1';
+                        banner.style.transform = 'translateY(0)';
+                    }, 10);
+                });
             }
 
             acceptBtn.addEventListener('click', function() {
                 localStorage.setItem('cookie-consent', 'accepted');
-                banner.style.display = 'none';
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateY(100%)';
+                setTimeout(() => banner.style.display = 'none', 400);
             });
 
             declineBtn.addEventListener('click', function() {
                 localStorage.setItem('cookie-consent', 'declined');
-                banner.style.display = 'none';
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateY(100%)';
+                setTimeout(() => banner.style.display = 'none', 400);
             });
         });
     </script>

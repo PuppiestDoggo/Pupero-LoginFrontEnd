@@ -674,20 +674,20 @@ def profile():
                     detail = response.json().get('detail', response.text)
                 except Exception:
                     detail = 'Update failed'
-                flash('Update failed: ' + str(detail), 'error')
+                flash('La mise à jour a échoué : ' + str(detail), 'error')
         except Exception as e:
-            flash(f'Update failed: {e}', 'error')
+            flash(f'La mise à jour a échoué : {e}', 'error')
 
     try:
         response = requests.get(f'{BACKEND_URL}/user/profile', headers=headers, timeout=10)
     except Exception as e:
-        flash(f'Could not load profile: {e}', 'error')
+        flash(f'Impossible de charger le profil : {e}', 'error')
         return redirect(url_for('login'))
     if response.status_code == 200:
         try:
             user_data = response.json()
         except Exception:
-            flash('Invalid profile response', 'error')
+            flash('Réponse de profil non valide', 'error')
             return redirect(url_for('login'))
         # Fetch 2FA (TOTP) status
         totp_enabled = False
@@ -717,7 +717,7 @@ def profile():
         }]
         return render_template('profile.html', user=user_data, sessions=sessions, totp_enabled=totp_enabled, reviews_summary=reviews_summary)
     else:
-        flash('Unauthorized', 'error')
+        flash('Non autorisé', 'error')
         return redirect(url_for('login'))
 
 
@@ -728,11 +728,11 @@ def public_profile(username: str):
     try:
         r = requests.get(f"{BACKEND_URL}/users/by-username/{username}", timeout=5)
         if r.status_code != 200:
-            flash(f"User {username} not found", "error")
+            flash(f"L'utilisateur {username} n'a pas été trouvé", "error")
             return redirect(url_for('offers'))
         user_info = r.json()
     except Exception as e:
-        flash(f"Error fetching user profile: {e}", "error")
+        flash(f"Erreur lors de la récupération du profil utilisateur : {e}", "error")
         return redirect(url_for('offers'))
 
     # Fetch reviews
@@ -781,7 +781,7 @@ def community():
         if r.status_code == 200:
             users = r.json() or []
     except Exception as e:
-        flash(f"Failed to load directory: {e}", "error")
+        flash(f"Échec du chargement de l'annuaire : {e}", "error")
 
     # Simple next/prev logic (assuming if we got 'limit' items, there might be next page)
     has_next = (len(users) == limit)
@@ -797,13 +797,13 @@ def totp_enable():
         return redirect(url_for('login'))
     # If TOTP is already enabled, don't show enable page again
     if _fetch_totp_enabled():
-        flash('Two-Factor Authentication is already enabled.', 'info')
+        flash('L\'authentification à deux facteurs est déjà activée.', 'info')
         return redirect(url_for('profile'))
     if request.method == 'POST':
         try:
             response = requests.post(f'{BACKEND_URL}/totp/enable/start', headers=headers, timeout=10)
         except Exception as e:
-            flash(f'Failed to enable TOTP: {e}', 'error')
+            flash(f'Échec de l\'activation du TOTP : {e}', 'error')
             return render_template('totp_enable.html')
         if response.status_code == 200:
             try:
@@ -811,13 +811,13 @@ def totp_enable():
                 qr_data_url = f"data:image/png;base64,{data['qr_code']}"
                 return render_template('totp_enable.html', secret=data.get('secret'), qr_url=qr_data_url)
             except Exception:
-                flash('Failed to enable TOTP: invalid response', 'error')
+                flash('Échec de l\'activation du TOTP : réponse non valide', 'error')
         else:
             try:
                 detail = response.json().get('detail', response.text)
             except Exception:
                 detail = response.text
-            flash('Failed to enable TOTP: ' + str(detail), 'error')
+            flash('Échec de l\'activation du TOTP : ' + str(detail), 'error')
     return render_template('totp_enable.html')
 
 
@@ -834,7 +834,7 @@ def totp_enable_confirm():
     try:
         response = requests.post(f"{BACKEND_URL}/totp/enable/confirm", json=payload, headers=headers, timeout=10)
     except Exception as e:
-        flash(f'Failed to confirm TOTP: {e}', 'error')
+        flash(f'Échec de la confirmation du TOTP : {e}', 'error')
         if secret and qr_url:
             return render_template('totp_enable.html', secret=secret, qr_url=qr_url)
         return redirect(url_for('totp_enable'))
@@ -877,7 +877,7 @@ def totp_disable():
                 detail = 'Failed to disable TOTP'
             flash(str(detail), 'error')
     except Exception as e:
-        flash(f'Failed to disable TOTP: {e}', 'error')
+        flash(f'Échec de la désactivation du TOTP : {e}', 'error')
     return redirect(url_for('profile'))
 
 
@@ -894,7 +894,7 @@ def password_reset():
                 msg = 'Request processed'
             flash(msg, 'info')
         except Exception as e:
-            flash(f'Reset request failed: {e}', 'error')
+            flash(f'Échec de la demande de réinitialisation : {e}', 'error')
         return redirect(url_for('login'))
     return render_template('reset.html')
 
@@ -919,9 +919,9 @@ def close_session():
         resp.delete_cookie('access_token')
         resp.delete_cookie('refresh_token')
         resp.delete_cookie('remember')
-        flash(f'Closed current session ({ip})', 'info')
+        flash(f'Session actuelle fermée ({ip})', 'info')
     else:
-        flash(f'Requested close for session {ip} (stub)', 'info')
+        flash(f'Fermeture de session demandée pour {ip} (stub)', 'info')
     return resp
 
 
@@ -938,7 +938,7 @@ def report_session():
         }))
     except Exception:
         pass
-    flash(f'Reported session {ip} to admin (stub)', 'warning')
+    flash(f'Session {ip} signalée à l\'administrateur (stub)', 'warning')
     return redirect(url_for('profile'))
 
 
@@ -958,7 +958,7 @@ def logout():
         }))
     except Exception:
         pass
-    flash('Logged out', 'info')
+    flash('Déconnexion réussie', 'info')
     return resp
 
 
@@ -978,7 +978,7 @@ def _is_admin_user(headers: dict) -> bool:
 def admin_page():
     headers = get_auth_headers()
     if not headers:
-        flash('Please log in as an administrator.', 'warning')
+        flash('Veuillez vous connecter en tant qu\'administrateur.', 'warning')
         return redirect(url_for('login'))
     # Determine real admin vs demo admin (cookie-based)
     real_admin = _is_admin_user(headers)
@@ -988,12 +988,12 @@ def admin_page():
     except Exception:
         demo_admin = False
     if not real_admin and not demo_admin:
-        flash('Administrator privileges required.', 'error')
+        flash('Privilèges administrateur requis.', 'error')
         return redirect(url_for('home'))
 
     # Handle actions (only allowed for real admins)
     if request.method == 'POST' and not real_admin:
-        flash('Demo mode: actions are disabled. Toggle is for viewing only.', 'warning')
+        flash('Mode démo : les actions sont désactivées.', 'warning')
         return redirect(url_for('admin_page'))
 
     # Handle actions
@@ -1009,29 +1009,29 @@ def admin_page():
                 disabled = (action == 'disable')
                 r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/disable", json={"disabled": disabled}, headers=headers, timeout=10)
                 if r.status_code == 200:
-                    flash(('User disabled' if disabled else 'User enabled'), 'success')
+                    flash('Utilisateur désactivé' if disabled else 'Utilisateur activé', 'success')
                 else:
-                    flash(r.text or 'Operation failed', 'error')
+                    flash(r.text or 'L\'opération a échoué', 'error')
             elif action == 'set_role' and uid:
                 role = (request.form.get('role') or '').strip().lower()
                 r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/role", json={"role": role}, headers=headers, timeout=10)
-                flash('Role updated' if r.status_code == 200 else (r.text or 'Role update failed'), 'info' if r.status_code == 200 else 'error')
+                flash('Rôle mis à jour' if r.status_code == 200 else (r.text or 'Échec de la mise à jour du rôle'), 'info' if r.status_code == 200 else 'error')
             elif action == 'reset_password' and uid:
                 new_password = request.form.get('new_password')
                 r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/password", json={"new_password": new_password}, headers=headers, timeout=10)
-                flash('Password reset' if r.status_code == 200 else (r.text or 'Password reset failed'), 'info' if r.status_code == 200 else 'error')
+                flash('Mot de passe réinitialisé' if r.status_code == 200 else (r.text or 'Échec de la réinitialisation du mot de passe'), 'info' if r.status_code == 200 else 'error')
             elif action == 'logout' and uid:
                 r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/logout", headers=headers, timeout=10)
-                flash('User sessions closed' if r.status_code == 200 else (r.text or 'Operation failed'), 'info' if r.status_code == 200 else 'error')
+                flash('Sessions utilisateur fermées' if r.status_code == 200 else (r.text or 'L\'opération a échoué'), 'info' if r.status_code == 200 else 'error')
         except Exception as e:
-            flash(f'Action failed: {e}', 'error')
+            flash(f'L\'action a échoué : {e}', 'error')
         return redirect(url_for('admin_page'))
 
     # GET: load users
     users = []
     # In demo mode without real admin rights, do not call protected admin APIs
     if not real_admin:
-        flash('Demo mode: viewing only. Data may be limited; actions are disabled.', 'info')
+        flash('Mode démo : affichage uniquement. Les actions sont désactivées.', 'info')
         element_base = f"{MATRIX_ELEMENT_URL}/#/room/"
         return render_template('admin.html', users=users, element_base=element_base, balance=None, last_user_id=None)
     try:
@@ -1039,9 +1039,9 @@ def admin_page():
         if r.status_code == 200:
             users = (r.json() or {}).get('users') or []
         else:
-            flash(r.text or 'Failed to load users', 'error')
+                    flash(r.text or 'Échec du chargement des utilisateurs', 'error')
     except Exception as e:
-        flash(f'Failed to load users: {e}', 'error')
+        flash(f'Échec du chargement des utilisateurs : {e}', 'error')
     element_base = f"{MATRIX_ELEMENT_URL}/#/room/"
     return render_template('admin.html', users=users, element_base=element_base, balance=None, last_user_id=None)
 
@@ -1050,7 +1050,7 @@ def admin_page():
 def admin_balance():
     headers = get_auth_headers()
     if not headers:
-        flash('Please log in as an administrator.', 'warning')
+        flash('Veuillez vous connecter en tant qu\'administrateur.', 'warning')
         return redirect(url_for('login'))
     real_admin = _is_admin_user(headers)
     demo_admin = False
@@ -1059,7 +1059,7 @@ def admin_balance():
     except Exception:
         demo_admin = False
     if not real_admin and not demo_admin:
-        flash('Administrator privileges required.', 'error')
+        flash('Privilèges administrateur requis.', 'error')
         return redirect(url_for('home'))
 
     bal = None
@@ -1076,14 +1076,14 @@ def admin_balance():
                 if r.status_code == 200:
                     bal = r.json()
                 else:
-                    flash(r.text or 'Failed to load balance', 'error')
+                    flash(r.text or 'Échec du chargement du solde', 'error')
             except Exception as e:
-                flash(f'Failed to load balance: {e}', 'error')
+                flash(f'Échec du chargement du solde : {e}', 'error')
         elif uid and not real_admin:
-            flash('Demo mode: cannot fetch balances without admin privileges.', 'info')
+            flash('Mode démo : impossible de récupérer les soldes sans privilèges administrateur.', 'info')
     else:
         if not real_admin:
-            flash('Demo mode: balance changes are disabled.', 'warning')
+            flash('Mode démo : les modifications de solde sont désactivées.', 'warning')
         else:
             try:
                 uid = int(request.form.get('user_id') or 0)
@@ -1807,16 +1807,16 @@ def edit_ad(offer_id: str):
         try:
             ur = requests.put(f"{OFFERS_SERVICE_URL}/offers/{offer_id}", json=payload, timeout=10)
             if ur.status_code == 200:
-                flash('Ad updated', 'success')
+                flash('Annonce mise à jour', 'success')
                 return redirect(url_for('my_ads'))
             else:
                 try:
                     detail = ur.json().get('detail', ur.text)
                 except Exception:
                     detail = ur.text
-                flash(f'Update failed: {detail}', 'error')
+                flash(f'La mise à jour a échoué : {detail}', 'error')
         except Exception as e:
-            flash(f'Update failed: {e}', 'error')
+            flash(f'La mise à jour a échoué : {e}', 'error')
     # GET mode: render edit form
     # Fetch cached market prices for client-side preview
     market_prices = {}
@@ -3480,7 +3480,7 @@ def rotate_address():
             except Exception:
                 data = {}
             disabled_prior = data.get('disabled_prior')
-            flash(f'New subaddress created. Disabled {disabled_prior} previous address(es).', 'success')
+            flash(f'Nouvelle sous-adresse créée. {disabled_prior} adresse(s) précédente(s) désactivée(s).', 'success')
         else:
             try:
                 detail = r.json().get('detail', r.text)
@@ -3558,7 +3558,7 @@ def moderation_dashboard():
     """Main moderation dashboard."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     is_admin = role in ('admin', 'superadmin')
@@ -3604,7 +3604,7 @@ def moderation_reports():
     """View all reports."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3629,7 +3629,7 @@ def moderation_report_detail(report_id):
     """View single report detail."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3654,7 +3654,7 @@ def moderation_resolve_report(report_id):
     """Resolve a report."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied.', 'error')
+        flash('Accès refusé.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3682,7 +3682,7 @@ def moderation_disputes():
     """View all disputes."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3707,7 +3707,7 @@ def moderation_dispute_detail(dispute_id):
     """View single dispute detail."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3732,7 +3732,7 @@ def moderation_resolve_dispute(dispute_id):
     """Resolve a dispute."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied.', 'error')
+        flash('Accès refusé.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3765,7 +3765,7 @@ def moderation_appeals():
     """View all appeals."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3790,7 +3790,7 @@ def moderation_resolve_appeal(appeal_id):
     """Resolve an appeal."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied.', 'error')
+        flash('Accès refusé.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3818,7 +3818,7 @@ def moderation_queue():
     """View moderation queue."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3873,7 +3873,7 @@ def moderation_users():
     """Search and view users for moderation."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3896,7 +3896,7 @@ def moderation_user_detail(target_user_id):
     """View user moderation details."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied. Moderator or admin role required.', 'error')
+        flash('Accès refusé. Rôle de modérateur ou d\'administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3929,7 +3929,7 @@ def moderation_user_action(target_user_id):
     """Take moderation action on a user."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed:
-        flash('Access denied.', 'error')
+        flash('Accès refusé.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3962,7 +3962,7 @@ def moderation_audit_logs():
     """View audit logs (admin only)."""
     is_allowed, role, user_id = _check_moderator_access()
     if not is_allowed or role not in ('admin', 'superadmin'):
-        flash('Access denied. Admin role required.', 'error')
+        flash('Accès refusé. Rôle administrateur requis.', 'error')
         return redirect(url_for('home'))
     
     headers = _get_moderation_headers()
@@ -3988,7 +3988,7 @@ def moderation_audit_logs():
 def submit_report():
     """Submit a report (for regular users)."""
     if not request.cookies.get('access_token'):
-        flash('Please log in to submit a report.', 'warning')
+        flash('Veuillez vous connecter pour envoyer un signalement.', 'warning')
         return redirect(url_for('login'))
     
     if request.method == 'POST':
@@ -4008,7 +4008,7 @@ def submit_report():
         try:
             r = requests.post(f'{MODERATION_SERVICE_URL}/reports', headers=headers, json=payload, timeout=10)
             if r.status_code in (200, 201):
-                flash('Report submitted successfully. Thank you.', 'success')
+                flash('Signalement envoyé avec succès. Merci.', 'success')
                 return redirect(url_for('home'))
             else:
                 detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
@@ -4028,7 +4028,7 @@ def submit_report():
 def submit_dispute():
     """Submit a trade dispute (for regular users)."""
     if not request.cookies.get('access_token'):
-        flash('Please log in to submit a dispute.', 'warning')
+        flash('Veuillez vous connecter pour ouvrir un litige.', 'warning')
         return redirect(url_for('login'))
     
     if request.method == 'POST':
@@ -4046,7 +4046,7 @@ def submit_dispute():
         try:
             r = requests.post(f'{MODERATION_SERVICE_URL}/disputes', headers=headers, json=payload, timeout=10)
             if r.status_code in (200, 201):
-                flash('Dispute submitted successfully. A moderator will review it.', 'success')
+                flash('Litige envoyé avec succès. Un modérateur l\'examinera prochainement.', 'success')
                 return redirect(url_for('trades_list'))
             else:
                 detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
