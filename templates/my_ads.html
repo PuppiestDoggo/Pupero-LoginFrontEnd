@@ -2,44 +2,60 @@
 {% block title %}Mes annonces{% endblock %}
 {% block content %}
 <h1>Mes annonces</h1>
-<p>Affichage de toutes les annonces (les outils de gestion ne sont visibles que pour vos annonces).</p>
-<ul style="list-style:none;padding-left:0;">
+<p style="color: var(--text-muted); margin-bottom: 2rem;">Affichage de vos annonces de vente et d'achat.</p>
+
+<div class="my-ads-list">
   {% for o in offers %}
-  <li style="margin-bottom:12px;border:1px solid #ddd;padding:8px;">
-    <div>
-      <a href="{{ url_for('offer_detail', offer_id=o.id) }}">{{ o.title }}</a>
-      — {{ o.price }} XMR — {{ o.status }} - {{ o.seller_name or 'inconnu' }}
+  <div class="wallet-card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 1rem;">
+      <div>
+        <h3 style="margin-bottom: 0.25rem;">
+          <a href="{{ url_for('offer_detail', offer_id=o.id) }}" style="color: var(--text-main); text-decoration: none;">{{ o.title }}</a>
+        </h3>
+        <span class="offer-status-badge">{{ o.status }}</span>
+        <span class="field-help">ID: {{ o.id }}</span>
+      </div>
+      <div style="text-align: right;">
+        <div class="price-value" style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">{{ o.price }} XMR</div>
+        <div class="field-help">Prix actuel affiché</div>
+      </div>
     </div>
+
     {% set is_owner = (my_user_id and o.seller_id and my_user_id == o.seller_id) or (my_name and o.seller_name and my_name == o.seller_name) %}
     {% if is_owner %}
-    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-      <a href="{{ url_for('edit_ad', offer_id=o.id) }}">Modifier les détails</a>
-      <form method="post" action="{{ url_for('delete_ad', offer_id=o.id) }}" onsubmit="return confirm('Supprimer cette annonce ?');" style="display:inline;">
-        <button type="submit" style="background:#b71c1c;color:#fff;">Supprimer</button>
-      </form>
-    </div>
-    <form method="post" action="{{ url_for('update_ad', offer_id=o.id) }}" style="display:grid;gap:6px;grid-template-columns:repeat(4, minmax(160px,1fr));align-items:end;margin-top:8px;">
-      <label>Titre
-        <input type="text" name="title" value="{{ o.title }}" maxlength="255">
-      </label>
-      <label>Prix (XMR)
-        <input type="number" step="0.0001" min="0.0001" name="price" value="{{ o.price }}">
-      </label>
-      <label>Statut
-        <select name="status">
-          <option value="open" {% if o.status=='open' %}selected{% endif %}>ouvert</option>
-          <option value="disabled" {% if o.status=='disabled' %}selected{% endif %}>désactivé</option>
-          <option value="closed" {% if o.status=='closed' %}selected{% endif %}>fermé</option>
-        </select>
-      </label>
-      <div>
-        <button type="submit">Sauvegarde rapide</button>
+    <form method="post" action="{{ url_for('update_ad', offer_id=o.id) }}" class="quick-edit-form" style="display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end;">
+      <div class="form-field">
+        <label>Titre
+          <input type="text" name="title" value="{{ o.title }}" maxlength="255">
+        </label>
+      </div>
+      <div class="form-field">
+        <label>Prix rapide (XMR)
+          <input type="number" step="0.0001" min="0.0001" name="price" value="{{ o.price }}">
+        </label>
+      </div>
+      <div class="form-field">
+        <label>Statut
+          <select name="status">
+            <option value="open" {% if o.status=='open' %}selected{% endif %}>ouvert</option>
+            <option value="disabled" {% if o.status=='disabled' %}selected{% endif %}>désactivé</option>
+            <option value="closed" {% if o.status=='closed' %}selected{% endif %}>fermé</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-actions" style="margin-top: 0; text-align: left; display: flex; gap: 8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Sauvegarder</button>
+        <a href="{{ url_for('edit_ad', offer_id=o.id) }}" class="btn btn-outline btn-sm">Détails</a>
+        <button type="submit" form="delete-form-{{ o.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cette annonce ?');">Supprimer</button>
       </div>
     </form>
+    <form id="delete-form-{{ o.id }}" method="post" action="{{ url_for('delete_ad', offer_id=o.id) }}" style="display:none;"></form>
     {% endif %}
-  </li>
+  </div>
   {% else %}
-  <li>Aucune annonce pour le moment.</li>
+  <div class="wallet-card">
+    <p class="empty-msg">Aucune annonce pour le moment.</p>
+  </div>
   {% endfor %}
-</ul>
+</div>
 {% endblock %}

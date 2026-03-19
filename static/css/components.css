@@ -102,20 +102,35 @@
   filter: brightness(1.1);
 }
 
-/* =====================================================
-   COOKIE BANNER (RGPD)
-   ===================================================== */
+.form-group label, .form-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.field-help {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
 .cookie-banner {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--bg-header);
-  border-top: 1px solid var(--border-soft);
-  padding: 1rem 2rem;
+  border-top: 1px solid var(--primary-soft);
+  padding: 1.25rem 2rem;
   z-index: 2000;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  
+  /* Animation */
+  opacity: 0;
+  transform: translateY(100%);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .cookie-content {

@@ -3,35 +3,43 @@
 {% block content %}
 <h1>Mes échanges</h1>
 {% if trades and trades|length > 0 %}
-  <table border="1" cellpadding="6" cellspacing="0">
-    <thead>
-      <tr>
-        <th align="left">ID Échange</th>
-        <th align="left">Offre</th>
-        <th align="left">Rôle</th>
-        <th align="left">Montant (XMR)</th>
-        <th align="left">Statut</th>
-        <th align="left">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for t in trades %}
-        <tr>
-          <td>{{ t.id }}</td>
-          <td>{{ t.offer_title or t.offer_id }}</td>
-          <td>{{ t.role }}</td>
-          <td>{{ '%.4f'|format(t.amount_xmr) }}</td>
-          <td>
-            {% if t.status == 'await_buyer' %}En attente de l'acheteur{% elif t.status == 'await_seller' %}En attente du vendeur{% else %}{{ t.status }}{% endif %}
-          </td>
-          <td>
-            <a href="{{ url_for('trade_view', trade_id=t.id) }}">Ouvrir</a>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="wallet-card transactions-card">
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th align="left">ID Échange</th>
+            <th align="left">Offre</th>
+            <th align="left">Rôle</th>
+            <th align="left">Montant (XMR)</th>
+            <th align="left">Statut</th>
+            <th align="left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trades %}
+            <tr>
+              <td><code>{{ t.id }}</code></td>
+              <td>{{ t.offer_title or t.offer_id }}</td>
+              <td><span class="badge {{ t.role }}">{{ t.role }}</span></td>
+              <td>{{ '%.4f'|format(t.amount_xmr) }}</td>
+              <td>
+                <span class="offer-status-badge">
+                  {% if t.status == 'await_buyer' %}En attente de l'acheteur{% elif t.status == 'await_seller' %}En attente du vendeur{% else %}{{ t.status }}{% endif %}
+                </span>
+              </td>
+              <td>
+                <a href="{{ url_for('trade_view', trade_id=t.id) }}" class="btn btn-primary btn-sm">Ouvrir</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 {% else %}
-  <p>Aucun échange pour le moment.</p>
+  <div class="wallet-card">
+    <p class="empty-msg">Aucun échange pour le moment.</p>
+  </div>
 {% endif %}
 {% endblock %}

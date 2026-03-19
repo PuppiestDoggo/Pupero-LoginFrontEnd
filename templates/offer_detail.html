@@ -41,13 +41,14 @@
     <strong>Combien de {{ ad.fiat }} / XMR souhaitez-vous échanger ?</strong>
   </div>
   <label>Montant en {{ ad.fiat }}
-    <input type="number" step="0.01" min="0" name="fiat_amount" id="fiat_amount" {% if ad.min_limit %}min="{{ ad.min_limit }}"{% endif %} {% if ad.max_limit %}max="{{ ad.max_limit }}"{% endif %}>
+    <input type="number" step="0.01" min="0" name="fiat_amount" id="fiat_amount" {% if ad.min_limit %}min="{{ ad.min_limit }}"{% endif %} {% if ad.max_limit %}max="{{ ad.max_limit }}"{% endif %} placeholder="100.00">
     {% if ad.min_limit or ad.max_limit %}
-    <small style="display:block;color:#555;">Limites : {% if ad.min_limit %}min {{ ad.min_limit }}{% endif %}{% if ad.min_limit and ad.max_limit %} · {% endif %}{% if ad.max_limit %}max {{ ad.max_limit }}{% endif %} {{ ad.fiat }}</small>
+    <small class="field-help">Limites : {% if ad.min_limit %}min {{ ad.min_limit }}{% endif %}{% if ad.min_limit and ad.max_limit %} · {% endif %}{% if ad.max_limit %}max {{ ad.max_limit }}{% endif %} {{ ad.fiat }}</small>
     {% endif %}
   </label>
   <label>Montant en XMR
-    <input type="number" step="0.0001" min="0.0001" name="xmr_amount" id="xmr_amount">
+    <input type="number" step="0.0001" min="0.0001" name="xmr_amount" id="xmr_amount" placeholder="0.5">
+    <small class="field-help">Min: 0.0001 XMR</small>
   </label>
   <label style="grid-column:1/3">Méthode de paiement
     <select name="payment_choice">

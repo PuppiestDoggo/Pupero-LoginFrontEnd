@@ -1,50 +1,149 @@
 {% extends 'base.html' %}
 {% block title %}Échange {{ trade.id }}{% endblock %}
 {% block content %}
-<h1>Échange</h1>
+<h1>Détails de l'échange</h1>
 
 {% set side = (trade.side or 'sell')|lower %}
-<div style="margin:8px 0;padding:8px;border:1px solid #ddd;background:#f9f9f9;">
-  {% if side == 'sell' %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">VENTE XMR</span>
-  {% else %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">ACHAT XMR</span>
+<div class="wallet-card" style="margin-bottom: 2rem;">
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+    {% if side == 'sell' %}
+      <span class="badge sell" style="font-size: 1rem; padding: 0.5rem 1rem;">VENTE XMR</span>
+    {% else %}
+      <span class="badge buy" style="font-size: 1rem; padding: 0.5rem 1rem;">ACHAT XMR</span>
+    {% endif %}
+    <span class="field-help">Flux : L'acheteur envoie la monnaie fiduciaire ➜ Le vendeur libère les XMR.</span>
+  </div>
+
+  <div style="display:grid; gap:1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+    <div class="detail-item">
+      <span class="label" style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">ID Échange</span>
+      <span class="val" style="font-weight: 600;"><code>{{ trade.id }}</code></span>
+    </div>
+    <div class="detail-item">
+      <span class="label" style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Offre</span>
+      <span class="val" style="font-weight: 600;">{{ trade.offer_title or trade.offer_id }}</span>
+    </div>
+    <div class="detail-item">
+      <span class="label" style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Montant</span>
+      <span class="val" style="font-weight: 600; color: var(--primary);">{{ '%.4f'|format(trade.amount_xmr) }} XMR</span>
+    </div>
+    <div class="detail-item">
+      <span class="label" style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Statut</span>
+      <span class="val">
+        <span class="offer-status-badge">
+          {% if trade.status == 'await_buyer' %}
+            En attente du paiement
+          {% elif trade.status == 'await_seller' %}
+            Paiement envoyé
+          {% elif trade.status == 'completed' %}
+            Terminé
+          {% else %}
+            {{ trade.status }}
+          {% endif %}
+        </span>
+      </span>
+    </div>
+  </div>
+
+  {% if trade.last_error %}
+    <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.9rem; border: 1px solid rgba(239, 68, 68, 0.2);">
+      <strong>Erreur :</strong> {{ trade.last_error }}
+    </div>
   {% endif %}
-  <span style="margin-left:8px;">Flux : <strong>L'acheteur envoie la monnaie fiduciaire</strong> ➜ <strong>Le vendeur libère les XMR</strong> (argent en base de données).</span>
 </div>
 
-<div style="display:grid;gap:8px;max-width:760px;grid-template-columns:1fr 2fr;">
-  <div><strong>ID Échange</strong></div><div>{{ trade.id }}</div>
-  <div><strong>Offre</strong></div><div>{{ trade.offer_title or trade.offer_id }}</div>
-  <div><strong>Montant</strong></div><div>{{ '%.4f'|format(trade.amount_xmr) }} XMR (argent en base de données)</div>
-  <div><strong>Vendeur (XMR)</strong></div><div>{{ trade.seller_id }}</div>
-  <div><strong>Acheteur (fiat)</strong></div><div>{{ trade.buyer_id }}</div>
-  <div><strong>Statut</strong></div>
-  <div>
-    {% if trade.status == 'await_buyer' %}
-      En attente que l'acheteur envoie le paiement et clique sur "Argent envoyé".
-    {% elif trade.status == 'await_seller' %}
-      L'acheteur a marqué l'argent comme envoyé. En attente que le vendeur confirme la réception.
-    {% elif trade.status == 'completed' %}
-      Terminé. XMR transférés à l'acheteur (grand livre interne).
-    {% else %}
-      {{ trade.status }}
+<div class="wallet-grid" style="grid-template-columns: 1.5fr 1fr; align-items: start; gap: 2rem;">
+  <!-- Messagerie -->
+  <div class="wallet-card">
+    <h3 style="margin-bottom: 1rem;">Messagerie Sécurisée</h3>
+    <div id="chat-panel" style="background: var(--bg-main); border: 1px solid var(--border-soft); border-radius: 8px; height: 400px; overflow-y: auto; padding: 1rem; margin-bottom: 1rem;"></div>
+    <form id="chat-form" style="display: flex; gap: 0.5rem;">
+      <input id="chat-input" type="text" placeholder="Tapez votre message..." style="flex: 1;">
+      <button type="submit" class="btn btn-primary">Envoyer</button>
+    </form>
+  </div>
+
+  <!-- Actions -->
+  <div class="wallet-card">
+    <h3 style="margin-bottom: 1rem;">Actions requises</h3>
+    
+    {% if role == 'buyer' %}
+      <div style="background: var(--primary-soft); padding: 1rem; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 1.5rem;">
+        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+          1. Envoyez le paiement au vendeur (hors Pupero).<br>
+          2. Cliquez ensuite sur <strong>"Argent envoyé"</strong>.
+        </p>
+        {% if trade.status == 'await_buyer' %}
+          <form method="post" action="{{ url_for('trade_money_sent', trade_id=trade.id) }}">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Argent envoyé</button>
+          </form>
+        {% else %}
+          <p class="field-help" style="text-align: center;">En attente de confirmation du vendeur.</p>
+        {% endif %}
+      </div>
+    {% elif role == 'seller' %}
+      <div style="background: var(--primary-soft); padding: 1rem; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 1.5rem;">
+        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+          1. Attendez la confirmation d'envoi de l'acheteur.<br>
+          2. Une fois reçu, cliquez sur <strong>"Libérer les XMR"</strong>.
+        </p>
+        {% if trade.status == 'await_seller' %}
+          <form method="post" action="{{ url_for('trade_payment_received', trade_id=trade.id) }}">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Libérer les XMR</button>
+          </form>
+        {% elif trade.status == 'await_buyer' %}
+          <p class="field-help" style="text-align: center;">En attente de l'acheteur.</p>
+        {% endif %}
+      </div>
     {% endif %}
-    {% if trade.last_error %}
-      <div style="color:#b00;margin-top:6px;">Dernière erreur : {{ trade.last_error }}</div>
-    {% endif %}
+
+    <div style="border-top: 1px solid var(--border-soft); padding-top: 1.5rem; margin-top: 1.5rem;">
+      <h4 style="margin-bottom: 1rem; font-size: 1rem;">Avis et Réputation</h4>
+      {% if reviews %}
+        {% for r in reviews %}
+          <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.75rem; border: 1px solid var(--border-soft);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+              <span style="color: var(--warning); font-weight: 700;">★ {{ r.rating }}/5</span>
+              <span class="field-help">Par #{{ r.reviewer_user_id }}</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-main);">{{ r.comment }}</p>
+            {% if is_admin %}
+              <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="margin-top: 0.5rem;">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cet avis ?')" style="padding: 2px 8px; font-size: 0.7rem;">Supprimer (Admin)</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty-msg" style="font-size: 0.85rem;">Aucun avis pour cet échange.</p>
+      {% endif %}
+
+      {% if can_review and trade.status == 'completed' %}
+        <form method="post" action="{{ url_for('submit_review', trade_id=trade.id) }}" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px;">
+          <h5 style="margin-bottom: 0.75rem;">Laisser un avis</h5>
+          <div class="form-field">
+            <label>Note
+              <select name="rating">
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Bon</option>
+                <option value="3">3 - Moyen</option>
+                <option value="2">2 - Mauvais</option>
+                <option value="1">1 - Terrible</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-field">
+            <label>Commentaire
+              <textarea name="comment" required style="height: 80px;"></textarea>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">Soumettre</button>
+        </form>
+      {% endif %}
+    </div>
   </div>
 </div>
 
-<hr>
-
-<h3>Messagerie</h3>
-<p>Utilisez cette messagerie pour coordonner le transfert d'argent et la libération des fonds. Cette messagerie est propulsée par Matrix.</p>
-<div id="chat-panel" style="border:1px solid #ccc;height:360px;overflow:auto;padding:6px;background:#fafafa;"></div>
-<form id="chat-form" style="display:flex;gap:6px;margin-top:6px;">
-  <input id="chat-input" type="text" placeholder="Tapez un message..." style="flex:1;padding:6px;">
-  <button type="submit">Envoyer</button>
-</form>
 <script>
   (function(){
     const tradeId = {{ trade.id | tojson }};
@@ -63,18 +162,21 @@
       try{
         const res = await fetch(`/api/chat/${tradeId}/messages`, {cache:'no-store'});
         if(!res.ok){
-          panel.innerHTML = `<div style="color:#b00;">Messagerie indisponible (${res.status})</div>`;
+          panel.innerHTML = `<div style="color:var(--danger); font-size: 0.85rem;">Messagerie indisponible (${res.status})</div>`;
           loading = false; return;
         }
         const data = await res.json();
         const msgs = Array.isArray(data.messages) ? data.messages : [];
-        panel.innerHTML = msgs.map(m => `<div style="margin:4px 0;"><span style="color:#555;">${escapeHtml(m.sender || '')}:</span> ${escapeHtml(String(m.body || ''))}</div>`).join('');
+        panel.innerHTML = msgs.map(m => `
+          <div style="margin-bottom: 0.75rem; border-left: 2px solid var(--primary); padding-left: 0.75rem;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.2rem;">${escapeHtml(m.sender || 'Anonyme')}</div>
+            <div style="font-size: 0.95rem; color: var(--text-main); word-break: break-word;">${escapeHtml(String(m.body || ''))}</div>
+          </div>
+        `).join('');
         if(firstLoad){ panel.scrollTop = panel.scrollHeight; firstLoad = false; }
       }catch(e){
-        panel.innerHTML = `<div style="color:#b00;">Erreur de messagerie : ${String(e)}</div>`;
-      }finally{
-        loading = false;
-      }
+        panel.innerHTML = `<div style="color:var(--danger); font-size: 0.85rem;">Erreur : ${String(e)}</div>`;
+      }finally{ loading = false; }
     }
 
     form.addEventListener('submit', async function(ev){
@@ -83,86 +185,16 @@
       if(!text) return;
       try{
         const res = await fetch(`/api/chat/${tradeId}/send`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})});
-        if(res.ok){ input.value=''; loadMessages(); }
-      }catch(e){ /* ignore */ }
+        if(res.ok){ input.value=''; loadMessages(); setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 100); }
+      }catch(e){ }
     });
 
     loadMessages();
-    setInterval(loadMessages, 2500);
+    setInterval(loadMessages, 3000);
   })();
 </script>
 
-<hr>
-
-{% if role == 'buyer' %}
-  <h3>Vous êtes l'Acheteur</h3>
-  <ol>
-    <li>Envoyez le paiement convenu au vendeur en utilisant la méthode de paiement spécifiée (en dehors de Pupero).</li>
-    <li>Une fois envoyé, cliquez sur le bouton ci-dessous.</li>
-  </ol>
-  {% if trade.status == 'await_buyer' %}
-  <form method="post" action="{{ url_for('trade_money_sent', trade_id=trade.id) }}">
-    <button type="submit">Argent envoyé</button>
-  </form>
-  {% else %}
-    <p>Aucune action disponible. En attente du vendeur.</p>
-  {% endif %}
-{% elif role == 'seller' %}
-  <h3>Vous êtes le Vendeur</h3>
-  <ol>
-    <li>Attendez que l'acheteur envoie l'argent et clique sur "Argent envoyé".</li>
-    <li>Une fois que vous avez reçu le paiement, cliquez sur le bouton ci-dessous pour libérer les XMR à l'acheteur (transfert sur le grand livre interne).</li>
-  </ol>
-  {% if trade.status == 'await_seller' %}
-  <form method="post" action="{{ url_for('trade_payment_received', trade_id=trade.id) }}">
-    <button type="submit">J'ai reçu mon argent – Libérer les XMR</button>
-  </form>
-  {% elif trade.status == 'await_buyer' %}
-    <p>En attente que l'acheteur envoie le paiement.</p>
-  {% else %}
-    <p>Aucune action disponible.</p>
-  {% endif %}
-{% endif %}
-
-<hr>
-<h3>Avis</h3>
-{% if reviews %}
-  <ul>
-  {% for r in reviews %}
-    <li>
-      <strong>Note : {{ r.rating }}/5</strong>
-      <p>{{ r.comment }}</p>
-      <small>Par l'utilisateur {{ r.reviewer_user_id }}</small>
-      {% if is_admin %}
-        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}" style="display:inline; margin-left:10px;">
-           <button type="submit" onclick="return confirm('Supprimer cet avis (Admin) ?')" style="color:red; font-size:0.8em;">Supprimer (Admin)</button>
-        </form>
-      {% endif %}
-    </li>
-  {% endfor %}
-  </ul>
-{% else %}
-  <p>Aucun avis pour le moment.</p>
-{% endif %}
-
-{% if can_review and trade.status == 'completed' %}
-  <h4>Laisser un avis</h4>
-  <form method="post" action="{{ url_for('submit_review', trade_id=trade.id) }}">
-    <label>Note : 
-      <select name="rating">
-        <option value="5">5 - Excellent</option>
-        <option value="4">4 - Bon</option>
-        <option value="3">3 - Moyen</option>
-        <option value="2">2 - Mauvais</option>
-        <option value="1">1 - Terrible</option>
-      </select>
-    </label><br>
-    <label>Commentaire : <br>
-      <textarea name="comment" required style="width:100%; height:60px;"></textarea>
-    </label><br>
-    <button type="submit">Soumettre l'avis</button>
-  </form>
-{% endif %}
-
-<p style="margin-top:16px;"><a href="{{ url_for('offers') }}">Retour aux offres</a></p>
+<div style="margin-top: 2rem; text-align: center;">
+  <a href="{{ url_for('trades_list') }}" class="btn btn-outline">← Retour à la liste</a>
+</div>
 {% endblock %}

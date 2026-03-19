@@ -37,7 +37,7 @@
               <a href="{{ url_for('balances') }}">Soldes</a>
               <a href="{{ url_for('trades_list') }}">Mes échanges</a>
               {% if active_trade_id %}
-                <a href="{{ url_for('trade_view', trade_id=active_trade_id) }}" class="btn btn-warning" style="background-color: #f0ad4e; color: white;">Échange actif</a>
+                <a href="{{ url_for('trade_view', trade_id=active_trade_id) }}" class="btn btn-warning">Échange actif</a>
               {% endif %}
 
               <!-- MENU PLUS -->
@@ -64,11 +64,11 @@
             {% else %}
               {% if is_admin %}
                 <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-warning">
-                    Désactiver Admin
+                    Quitter Admin
                 </a>
               {% else %}
                 <a href="{{ url_for('debug_admin_full_toggle') }}" class="btn btn-danger">
-                    Activer Admin
+                    Accès Admin
                 </a>
               {% endif %}
               <a href="{{ url_for('profile') }}" class="btn btn-outline">Profil</a>
@@ -82,7 +82,7 @@
     {% endif %}
 
     {% if is_admin %}
-    <div style="background:var(--warning);color:#000;padding:6px 12px;text-align:center;font-size:0.85rem;font-weight:600;">MODE ADMINISTRATEUR ACTIVÉ (DEBUG)</div>
+    <div style="background:var(--danger);color:var(--text-inv);padding:4px 12px;text-align:center;font-size:0.75rem;font-weight:600;letter-spacing:0.05em;">CONSOLE D'ADMINISTRATION</div>
     {% endif %}
 
     <div class="flash-container">
@@ -120,6 +120,21 @@
                 banner.style.display = 'none';
             } else {
                 banner.style.display = 'block';
+                // Ajout d'une petite animation d'entrée
+                setTimeout(() => {
+                    banner.style.opacity = '1';
+                    banner.style.transform = 'translateY(0)';
+                }, 100);
+            }
+
+            // Pour la démo : permettre de forcer l'affichage avec ?reset_cookies=1
+            if (window.location.search.includes('reset_cookies=1')) {
+                localStorage.removeItem('cookie-consent');
+                banner.style.display = 'block';
+                setTimeout(() => {
+                    banner.style.opacity = '1';
+                    banner.style.transform = 'translateY(0)';
+                }, 100);
             }
 
             acceptBtn.addEventListener('click', function() {
