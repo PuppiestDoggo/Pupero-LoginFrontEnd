@@ -189,7 +189,9 @@
   }
   function round2(n){ return Math.round(n * 100) / 100; }
   function updateResultPrice() {
-    const mode = document.getElementById('price_mode').value;
+    const modeSel = document.getElementById('price_mode');
+    if (!modeSel) return;
+    const mode = modeSel.value;
     const fiatSel = document.getElementById('fiat_select');
     const fiat = fiatSel ? fiatSel.value : 'EUR';
     const marginInput = document.querySelector('input[name="margin"]');
@@ -235,7 +237,8 @@
     if (span) span.textContent = text;
   }
   document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('price_mode').addEventListener('change', updateResultPrice);
+    const modeSel = document.getElementById('price_mode');
+    if (modeSel) modeSel.addEventListener('change', updateResultPrice);
     const marginInput = document.querySelector('input[name="margin"]');
     const fixedInput = document.querySelector('input[name="fixed_price"]');
     const fiatSel = document.getElementById('fiat_select');

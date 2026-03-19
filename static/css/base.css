@@ -18,6 +18,7 @@
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --text-inv: #ffffff;
+    --text-dark: #0f172a;
 
     --border-soft: rgba(255, 255, 255, 0.08);
     --border-focus: #3b82f6;
@@ -159,20 +160,20 @@ body {
 
 .flash-message.error, .flash-message.danger {
     border-left-color: var(--danger);
-    color: #fca5a5;
-    background: rgba(239, 68, 68, 0.1);
+    color: #ffffff;
+    background: rgba(239, 68, 68, 0.2);
 }
 
 .flash-message.success {
     border-left-color: var(--success);
-    color: #6ee7b7;
-    background: rgba(16, 185, 129, 0.1);
+    color: #ffffff;
+    background: rgba(16, 185, 129, 0.2);
 }
 
 .flash-message.info, .flash-message.warning {
     border-left-color: var(--warning);
-    color: #fcd34d;
-    background: rgba(245, 158, 11, 0.1);
+    color: #ffffff;
+    background: rgba(245, 158, 11, 0.2);
 }
 
 @keyframes slideIn {

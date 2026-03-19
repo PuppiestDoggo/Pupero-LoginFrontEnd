@@ -126,18 +126,22 @@
     function round2(n){ return Math.round(n * 100) / 100; }
     
     function updateResultPrice() {
-      const mode = document.querySelector('select[name="price_mode"]').value;
+      const modeSel = document.querySelector('select[name="price_mode"]');
+      if (!modeSel) return;
+      const mode = modeSel.value;
       const fiat = 'EUR'; // Devise par défaut pour la création simplifiée
       const marginInput = document.querySelector('input[name="margin"]');
       const fixedInput = document.querySelector('input[name="fixed_price"]');
-      const marginGroup = marginInput.closest('.form-field');
       const fixedGroup = document.getElementById('fixed_price_group');
       
       let text = '—';
       if (mode === 'market') {
-        marginGroup.style.display = 'block';
-        fixedGroup.style.display = 'none';
-        let m = parseFloat(marginInput.value || '0');
+        if (marginInput && marginInput.closest('.form-field')) {
+          marginInput.closest('.form-field').style.display = 'block';
+        }
+        if (fixedGroup) fixedGroup.style.display = 'none';
+        
+        let m = parseFloat(marginInput ? marginInput.value : '0');
         if (isNaN(m)) m = 0;
         const base = getMarketBase(fiat);
         if (typeof base === 'number') {
@@ -145,15 +149,18 @@
           text = price + ' ' + fiat;
         }
       } else if (mode === 'fixed') {
-        marginGroup.style.display = 'none';
-        fixedGroup.style.display = 'block';
-        const fp = parseFloat(fixedInput.value || '');
+        const marginField = marginInput ? marginInput.closest('.form-field') : null;
+        if (marginField) marginField.style.display = 'none';
+        if (fixedGroup) fixedGroup.style.display = 'block';
+        
+        const fp = parseFloat(fixedInput ? fixedInput.value : '');
         if (!isNaN(fp)) {
           text = round2(fp) + ' ' + fiat;
         }
       }
       
-      document.getElementById('result_price_value').textContent = text;
+      const resVal = document.getElementById('result_price_value');
+      if (resVal) resVal.textContent = text;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -161,9 +168,18 @@
       const marginInput = document.querySelector('input[name="margin"]');
       const fixedInput = document.querySelector('input[name="fixed_price"]');
       
-      if(modeSel) modeSel.addEventListener('change', updateResultPrice);
-      if(marginInput) marginInput.addEventListener('input', updateResultPrice);
-      if(fixedInput) fixedInput.addEventListener('input', updateResultPrice);
+      if(modeSel) modeSel.addEventListener('change', () => {
+        console.log("Price mode changed");
+        updateResultPrice();
+      });
+      if(marginInput) marginInput.addEventListener('input', () => {
+        console.log("Margin input changed");
+        updateResultPrice();
+      });
+      if(fixedInput) fixedInput.addEventListener('input', () => {
+        console.log("Fixed price input changed");
+        updateResultPrice();
+      });
       
       updateResultPrice();
     });

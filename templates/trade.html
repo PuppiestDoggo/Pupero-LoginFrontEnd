@@ -56,7 +56,7 @@
   <!-- Messagerie -->
   <div class="wallet-card">
     <h3 style="margin-bottom: 1rem;">Messagerie Sécurisée</h3>
-    <div id="chat-panel" style="background: var(--bg-main); border: 1px solid var(--border-soft); border-radius: 8px; height: 400px; overflow-y: auto; padding: 1rem; margin-bottom: 1rem;"></div>
+    <div id="chat-panel" style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: 8px; height: 400px; overflow-y: auto; padding: 1rem; margin-bottom: 1rem;"></div>
     <form id="chat-form" style="display: flex; gap: 0.5rem;">
       <input id="chat-input" type="text" placeholder="Tapez votre message..." style="flex: 1;">
       <button type="submit" class="btn btn-primary">Envoyer</button>
@@ -169,8 +169,8 @@
         const msgs = Array.isArray(data.messages) ? data.messages : [];
         panel.innerHTML = msgs.map(m => `
           <div style="margin-bottom: 0.75rem; border-left: 2px solid var(--primary); padding-left: 0.75rem;">
-            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.2rem;">${escapeHtml(m.sender || 'Anonyme')}</div>
-            <div style="font-size: 0.95rem; color: var(--text-main); word-break: break-word;">${escapeHtml(String(m.body || ''))}</div>
+            <div style="font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.2rem;">${escapeHtml(m.sender || 'Anonyme')}</div>
+            <div style="font-size: 0.95rem; color: #0f172a; word-break: break-word;">${escapeHtml(String(m.body || ''))}</div>
           </div>
         `).join('');
         if(firstLoad){ panel.scrollTop = panel.scrollHeight; firstLoad = false; }
