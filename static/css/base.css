@@ -649,6 +649,11 @@ textarea:focus {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
+.profile-card.danger-zone {
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.02);
+}
+
 /* ===== Liens ===== */
 .profile-card .link {
   margin-left: 0.5rem;

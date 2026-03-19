@@ -37,6 +37,9 @@
                     <button type="submit" class="btn btn-primary">Continuer</button>
                     <a href="{{ url_for('register') }}" class="btn btn-outline">Inscription</a>
                 </div>
+                <p class="login-note" style="margin-top: 1rem; text-align: center;">
+                    <a href="{{ url_for('password_reset') }}">Mot de passe oublié ?</a>
+                </p>
             </form>
 
             {% elif current_stage == 'password' %}
@@ -61,6 +64,9 @@
                     <button type="submit" class="btn btn-primary">Se connecter</button>
                     <button type="submit" name="stage" value="identifier" formaction="{{ url_for('login') }}" class="btn btn-outline">Retour</button>
                 </div>
+                <p class="login-note" style="margin-top: 1rem; text-align: center;">
+                    <a href="{{ url_for('password_reset') }}">Mot de passe oublié ?</a>
+                </p>
             </form>
 
             {% elif current_stage == 'totp' %}

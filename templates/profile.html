@@ -229,5 +229,41 @@
     {% endif %}
   </div>
 
+  <!-- ===== Zone de danger (Suppression de compte) ===== -->
+  <div class="profile-card danger-zone">
+    <h2 style="color: var(--status-error);">Zone de danger : Supprimer mon compte</h2>
+    <div class="alert alert-error">
+      <div class="alert-text">
+        <strong>Attention :</strong> Cette action est irréversible. Toutes vos données, annonces et historiques seront définitivement supprimés de nos serveurs, conformément à la RGPD.
+      </div>
+    </div>
+    
+    <form method="post" action="{{ url_for('profile_delete') }}" class="profile-form">
+      <p style="margin-bottom: 1rem;">Pour confirmer la suppression, veuillez remplir les informations suivantes :</p>
+      
+      <label>
+        Mot de passe actuel
+        <input type="password" name="current_password" required placeholder="Confirmez avec votre mot de passe">
+      </label>
+
+      {% if totp_enabled %}
+      <label>
+        Code 2FA (TOTP)
+        <input type="text" name="totp" required placeholder="Entrez votre code de sécurité">
+      </label>
+      {% endif %}
+
+      <div style="margin: 1rem 0; display: flex; align-items: center; gap: 0.5rem;">
+        <input type="checkbox" name="confirm" id="confirm_delete" required>
+        <label for="confirm_delete" style="margin: 0;">Je confirme vouloir supprimer définitivement mon compte.</label>
+      </div>
+
+      <button class="btn btn-danger" type="submit" 
+              onclick="return confirm('ÊTES-VOUS ABSOLUMENT SÛR ? Cette action est irréversible.');">
+        Supprimer définitivement mon compte
+      </button>
+    </form>
+  </div>
+
 </div>
 {% endblock %}

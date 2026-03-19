@@ -729,6 +729,38 @@ def profile():
         return redirect(url_for('login'))
 
 
+@app.route('/profile/delete', methods=['POST'])
+def profile_delete():
+    headers = get_auth_headers()
+    if not headers:
+        return redirect(url_for('login'))
+
+    payload = {
+        'current_password': request.form.get('current_password', ''),
+        'totp': request.form.get('totp', ''),
+        'confirm': request.form.get('confirm') == 'on'
+    }
+
+    try:
+        response = requests.delete(f'{BACKEND_URL}/user/delete', json=payload, headers=headers, timeout=10)
+        if response.status_code == 200:
+            resp = make_response(redirect(url_for('home')))
+            # Clear access token cookie
+            resp.set_cookie('access_token', '', expires=0)
+            flash('Votre compte a été définitivement supprimé. Nous sommes désolés de vous voir partir.', 'success')
+            return resp
+        else:
+            try:
+                detail = response.json().get('detail', response.text)
+            except Exception:
+                detail = 'Échec de la suppression'
+            flash('La suppression du compte a échoué : ' + str(detail), 'error')
+    except Exception as e:
+        flash(f'La suppression du compte a échoué : {e}', 'error')
+
+    return redirect(url_for('profile'))
+
+
 @app.route('/user/<username>')
 def public_profile(username: str):
     # Fetch user info
@@ -897,14 +929,51 @@ def password_reset():
         try:
             response = requests.post(f'{BACKEND_URL}/password/reset', json=data, timeout=10)
             try:
-                msg = response.json().get('message', 'Request processed')
+                msg = response.json().get('message', 'Demande traitée')
             except Exception:
-                msg = 'Request processed'
+                msg = 'Demande traitée'
             flash(msg, 'info')
         except Exception as e:
             flash(f'Échec de la demande de réinitialisation : {e}', 'error')
         return redirect(url_for('login'))
     return render_template('reset.html')
+
+
+# Password Reset Confirmation (Link from Email)
+@app.route('/reset-password', methods=['GET', 'POST'])
+def password_reset_confirm():
+    token = request.args.get('token')
+    if not token:
+        flash('Jeton de réinitialisation manquant.', 'error')
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if new_password != confirm_password:
+            flash('Les mots de passe ne correspondent pas.', 'error')
+            return render_template('reset_confirm.html', token=token)
+            
+        try:
+            data = {
+                'token': token,
+                'new_password': new_password
+            }
+            response = requests.post(f'{BACKEND_URL}/password/reset/confirm', json=data, timeout=10)
+            if response.status_code == 200:
+                flash('Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.', 'success')
+                return redirect(url_for('login'))
+            else:
+                try:
+                    detail = response.json().get('detail', 'Échec de la réinitialisation')
+                except Exception:
+                    detail = 'Échec de la réinitialisation'
+                flash(str(detail), 'error')
+        except Exception as e:
+            flash(f'Erreur lors de la réinitialisation : {e}', 'error')
+            
+    return render_template('reset_confirm.html', token=token)
 
 
 # Sessions management (UI stubs)
