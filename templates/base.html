@@ -103,12 +103,15 @@
     </main>
 
     <!-- Consentement Cookies (RGPD) -->
-    <div id="cookie-banner" class="cookie-banner">
+    <div id="cookie-banner" class="cookie-banner" style="display: none;">
         <div class="cookie-content">
-            <p>Ce site utilise des cookies pour améliorer votre expérience et assurer la sécurité des transactions. En continuant, vous acceptez notre utilisation des cookies.</p>
+            <div class="cookie-text">
+                <strong>Respect de votre vie privée</strong>
+                <p>Ce site utilise des cookies essentiels au fonctionnement et à la sécurité de vos échanges Monero. En cliquant sur "Tout accepter", vous consentez à l'utilisation de ces technologies.</p>
+            </div>
             <div class="cookie-actions">
-                <button id="accept-cookies" class="btn btn-primary btn-sm">Accepter</button>
-                <button id="decline-cookies" class="btn btn-outline btn-sm">Refuser</button>
+                <button id="accept-cookies" class="btn btn-primary">Tout accepter</button>
+                <button id="decline-cookies" class="btn btn-outline">Paramètres</button>
             </div>
         </div>
     </div>
@@ -134,38 +137,34 @@
             } else {
                 banner.style.display = 'block';
                 // Ajout d'une petite animation d'entrée
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        banner.style.opacity = '1';
-                        banner.style.transform = 'translateY(0)';
-                    }, 10);
-                });
+                setTimeout(() => {
+                    banner.style.opacity = '1';
+                    banner.style.transform = 'translateY(0)';
+                }, 100);
             }
 
             // Pour la démo : permettre de forcer l'affichage avec ?reset_cookies=1
             if (window.location.search.includes('reset_cookies=1')) {
                 localStorage.removeItem('cookie-consent');
                 banner.style.display = 'block';
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        banner.style.opacity = '1';
-                        banner.style.transform = 'translateY(0)';
-                    }, 10);
-                });
+                setTimeout(() => {
+                    banner.style.opacity = '1';
+                    banner.style.transform = 'translateY(0)';
+                }, 100);
             }
 
             acceptBtn.addEventListener('click', function() {
                 localStorage.setItem('cookie-consent', 'accepted');
                 banner.style.opacity = '0';
-                banner.style.transform = 'translateY(100%)';
-                setTimeout(() => banner.style.display = 'none', 400);
+                banner.style.transform = 'translateY(20px)';
+                setTimeout(() => banner.style.display = 'none', 500);
             });
 
             declineBtn.addEventListener('click', function() {
                 localStorage.setItem('cookie-consent', 'declined');
                 banner.style.opacity = '0';
-                banner.style.transform = 'translateY(100%)';
-                setTimeout(() => banner.style.display = 'none', 400);
+                banner.style.transform = 'translateY(20px)';
+                setTimeout(() => banner.style.display = 'none', 500);
             });
         });
     </script>
