@@ -150,24 +150,11 @@ body {
     width: calc(100% - 4rem);
 }
 
+/* On utilise les styles .alert de components.css pour les flash messages */
 .flash-message {
-    padding: 1rem 1.25rem;
-    border-radius: var(--radius-md);
-    font-size: 0.95rem;
-    font-weight: 500;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    color: #ffffff !important;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(12px);
-    border-left: 4px solid transparent;
-    transition: all 0.4s ease;
     animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* On réutilise les styles .alert pour les flash messages */
 .flash-message.error, .flash-message.danger {
     border-left-color: #fca5a5;
     background: rgba(239, 68, 68, 0.95);
