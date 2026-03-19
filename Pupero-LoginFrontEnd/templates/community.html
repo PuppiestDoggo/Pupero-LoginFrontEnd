@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Communauté - Pupero{% endblock %}
+
+{% block content %}
+<div class="container-narrow">
+    <div class="page-header">
+        <h1>Annuaire de la communauté</h1>
+        <p class="text-muted">Recherchez des traders de confiance sur Pupero.</p>
+    </div>
+
+    <div class="search-section card-modern">
+        <form method="get" action="{{ url_for('community') }}" class="search-form">
+            <div class="search-input-wrapper">
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher un utilisateur par nom..." class="form-input search-input">
+                <button type="submit" class="btn btn-primary btn-search">Rechercher</button>
+            </div>
+        </form>
+    </div>
+
+    {% if users %}
+        <div class="users-grid">
+            {% for u in users %}
+                <div class="user-card card-modern">
+                    <div class="user-info">
+                        <div class="user-header">
+                            <h3>{{ u.username }}</h3>
+                            {% if u.successful_trades >= 50 %}
+                                <span class="badge badge-success">Vendeur vérifié</span>
+                            {% elif u.successful_trades >= 10 %}
+                                <span class="badge badge-info">Trader actif</span>
+                            {% endif %}
+                        </div>
+                        <div class="user-stats">
+                            <span class="stat-item">
+                                <span class="stat-label">Échanges :</span>
+                                <span class="stat-value">{{ u.successful_trades }}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="user-actions">
+                        <a href="{{ url_for('public_profile', username=u.username) }}" class="btn btn-outline btn-sm">Voir le profil</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="{{ url_for('community', q=q, page=page - 1) }}" class="btn btn-outline btn-sm">Précédent</a>
+            {% endif %}
+            <span class="page-info">Page {{ page }}</span>
+            {% if has_next %}
+                <a href="{{ url_for('community', q=q, page=page + 1) }}" class="btn btn-outline btn-sm">Suivant</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="empty-state card-modern">
+            <p>Aucun utilisateur trouvé.</p>
+            {% if q %}
+                <a href="{{ url_for('community') }}" class="btn btn-outline btn-sm">Réinitialiser la recherche</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.container-narrow {
+    max-width: 800px;
+    margin: 2rem auto;
+}
+.page-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+.search-section {
+    margin-bottom: 2rem;
+}
+.search-input-wrapper {
+    display: flex;
+    gap: 10px;
+}
+.search-input {
+    flex-grow: 1;
+}
+.users-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.user-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+}
+.user-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.25rem;
+}
+.user-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.user-stats {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+.page-info {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+}
+</style>
+{% endblock %}
