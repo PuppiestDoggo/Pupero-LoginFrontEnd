@@ -41,6 +41,13 @@
         <input type="password" id="password" name="password" required placeholder="••••••••">
       </div>
 
+      <div class="form-group" style="display: flex; align-items: flex-start; gap: 10px; margin-top: 1rem; margin-bottom: 1.5rem;">
+        <input type="checkbox" id="accept_terms" name="accept_terms" required style="margin-top: 4px; width: auto;">
+        <label for="accept_terms" style="font-size: 0.9rem; font-weight: 400; cursor: pointer;">
+          J'accepte les <a href="{{ url_for('terms') }}" target="_blank" style="color: var(--primary); text-decoration: underline;">conditions d'utilisation</a>
+        </label>
+      </div>
+
       <div class="login-actions">
         <button type="submit" class="btn btn-primary">
           Créer un compte
@@ -50,7 +57,7 @@
     </form>
 
     <div class="alert alert-info" style="margin-top: 1.5rem;">
-      <div class="alert-text">En créant un compte, vous acceptez nos conditions d'utilisation.</div>
+      <div class="alert-text">Vos données sont protégées conformément à la RGPD.</div>
     </div>
   </div>
 

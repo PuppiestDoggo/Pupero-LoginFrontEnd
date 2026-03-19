@@ -421,6 +421,10 @@ def inject_totp():
 def home():
     return render_template('home.html')
 
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
 @app.route("/health")
 def health():
     return "OK", 200
@@ -429,6 +433,10 @@ def health():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        if not request.form.get('accept_terms'):
+            flash('Vous devez accepter les conditions d\'utilisation.', 'error')
+            return render_template('register.html')
+            
         data = {
             'email': request.form['email'],
             'username': request.form.get('username', ''),
