@@ -7,9 +7,9 @@
 <div class="wallet-card" style="margin-bottom: 2rem;">
   <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
     {% if side == 'sell' %}
-      <span class="badge sell" style="font-size: 1rem; padding: 0.5rem 1rem;">VENTE XMR</span>
+      <span class="badge-sell">VENTE XMR</span>
     {% else %}
-      <span class="badge buy" style="font-size: 1rem; padding: 0.5rem 1rem;">ACHAT XMR</span>
+      <span class="badge-buy">ACHAT XMR</span>
     {% endif %}
     <span class="field-help">Flux : L'acheteur envoie la monnaie fiduciaire ➜ Le vendeur libère les XMR.</span>
   </div>
@@ -46,8 +46,8 @@
   </div>
 
   {% if trade.last_error %}
-    <div style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.9rem; border: 1px solid rgba(239, 68, 68, 0.2);">
-      <strong>Erreur :</strong> {{ trade.last_error }}
+    <div class="alert alert-danger">
+      <div><strong>Erreur :</strong> {{ trade.last_error }}</div>
     </div>
   {% endif %}
 </div>
@@ -68,11 +68,13 @@
     <h3 style="margin-bottom: 1rem;">Actions requises</h3>
     
     {% if role == 'buyer' %}
-      <div style="background: var(--primary-soft); padding: 1rem; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 1.5rem;">
-        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+      <div class="alert alert-info">
+        <div>
           1. Envoyez le paiement au vendeur (hors Pupero).<br>
           2. Cliquez ensuite sur <strong>"Argent envoyé"</strong>.
-        </p>
+        </div>
+      </div>
+      <div style="margin-bottom: 1.5rem;">
         {% if trade.status == 'await_buyer' %}
           <form method="post" action="{{ url_for('trade_money_sent', trade_id=trade.id) }}">
             <button type="submit" class="btn btn-primary" style="width: 100%;">Argent envoyé</button>
@@ -82,11 +84,13 @@
         {% endif %}
       </div>
     {% elif role == 'seller' %}
-      <div style="background: var(--primary-soft); padding: 1rem; border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 1.5rem;">
-        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+      <div class="alert alert-info">
+        <div>
           1. Attendez la confirmation d'envoi de l'acheteur.<br>
           2. Une fois reçu, cliquez sur <strong>"Libérer les XMR"</strong>.
-        </p>
+        </div>
+      </div>
+      <div style="margin-bottom: 1.5rem;">
         {% if trade.status == 'await_seller' %}
           <form method="post" action="{{ url_for('trade_payment_received', trade_id=trade.id) }}">
             <button type="submit" class="btn btn-primary" style="width: 100%;">Libérer les XMR</button>

@@ -136,49 +136,67 @@ body {
 
 
 /* =====================================================
-   FLASH MESSAGES
+   FLASH MESSAGES (TOAST POPUPS)
 ===================================================== */
 .flash-container {
-    max-width: 800px;
-    margin: 1rem auto;
-    padding: 0 20px;
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    max-width: 400px;
+    width: calc(100% - 4rem);
 }
 
 .flash-message {
     padding: 1rem 1.25rem;
     border-radius: var(--radius-md);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    color: #ffffff !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
     border-left: 4px solid transparent;
-    background: var(--bg-card);
-    box-shadow: var(--shadow-md);
-    animation: slideIn 0.3s ease-out;
+    transition: all 0.4s ease;
+    animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* On réutilise les styles .alert pour les flash messages */
 .flash-message.error, .flash-message.danger {
-    border-left-color: var(--danger);
-    color: #ffffff;
-    background: rgba(239, 68, 68, 0.2);
+    border-left-color: #fca5a5;
+    background: rgba(239, 68, 68, 0.95);
 }
 
 .flash-message.success {
-    border-left-color: var(--success);
-    color: #ffffff;
-    background: rgba(16, 185, 129, 0.2);
+    border-left-color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.95);
 }
 
 .flash-message.info, .flash-message.warning {
-    border-left-color: var(--warning);
-    color: #ffffff;
-    background: rgba(245, 158, 11, 0.2);
+    border-left-color: #fcd34d;
+    background: rgba(245, 158, 11, 0.95);
 }
 
-@keyframes slideIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Surcharge spécifique pour flash container */
+.flash-container .flash-message {
+    margin-bottom: 0;
+}
+
+@keyframes toastIn {
+    from { 
+        opacity: 0; 
+        transform: translateX(100%) scale(0.9); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateX(0) scale(1); 
+    }
 }
 
 /* =====================================================

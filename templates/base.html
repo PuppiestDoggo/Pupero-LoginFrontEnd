@@ -85,11 +85,14 @@
     <div style="background:var(--danger);color:var(--text-inv);padding:4px 12px;text-align:center;font-size:0.75rem;font-weight:600;letter-spacing:0.05em;">CONSOLE D'ADMINISTRATION</div>
     {% endif %}
 
-    <div class="flash-container">
+    <div id="flash-container" class="flash-container">
       {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
               {% for category, message in messages %}
-                  <div class="flash-message {{ category }}">{{ message }}</div>
+                  <div class="flash-message {{ category }}">
+                      <span class="flash-text">{{ message }}</span>
+                      <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+                  </div>
               {% endfor %}
           {% endif %}
       {% endwith %}
@@ -112,6 +115,16 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Gestion des flash messages (auto-dismiss)
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(msg => {
+                setTimeout(() => {
+                    msg.style.opacity = '0';
+                    msg.style.transform = 'translateX(100%)';
+                    setTimeout(() => msg.remove(), 400);
+                }, 5000);
+            });
+
             const banner = document.getElementById('cookie-banner');
             const acceptBtn = document.getElementById('accept-cookies');
             const declineBtn = document.getElementById('decline-cookies');

@@ -115,6 +115,97 @@
   color: var(--text-muted);
   font-size: 0.75rem;
 }
+
+/* Info Banners */
+.info-banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  line-height: 1.5;
+}
+
+.info-banner-text {
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.badge-sell, .badge-buy {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badge-sell {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-buy {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+/* =====================================================
+   ALERTS / NOTIFICATIONS (BASÉES SUR LES TOASTS)
+   ===================================================== */
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  color: #ffffff !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  border-left: 4px solid transparent;
+  margin-bottom: 1rem;
+  transition: all 0.4s ease;
+}
+
+.alert-error, .alert-danger {
+  border-left-color: #fca5a5;
+  background: rgba(239, 68, 68, 0.95);
+}
+
+.alert-success {
+  border-left-color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.95);
+}
+
+.alert-info, .alert-warning {
+  border-left-color: #fcd34d;
+  background: rgba(245, 158, 11, 0.95);
+}
+
+.alert-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.alert-close:hover {
+  color: #ffffff;
+}
+
 .cookie-banner {
   position: fixed;
   bottom: 0;

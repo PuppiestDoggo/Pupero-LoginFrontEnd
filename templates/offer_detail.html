@@ -4,13 +4,13 @@
 <h1>{{ offer.title }}</h1>
 
 {% set side = (offer_side or ad.side)|lower %}
-<div style="margin:8px 0;padding:8px;border:1px solid #ddd;background:#f9f9f9;">
+<div class="alert alert-info">
   {% if side == 'sell' %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#ffecb3;color:#8a6d3b;font-weight:600;">VENTE XMR</span>
-    <span style="margin-left:8px;">Le propriétaire de l'offre est le <strong>Vendeur de XMR</strong>. Si vous lancez un échange, <strong>vous ACHÈTEREZ des XMR</strong> et paierez en monnaie fiduciaire (fiat) à l'extérieur.</span>
+    <span class="badge-sell">VENTE XMR</span>
+    <div class="alert-text">Le propriétaire de l'offre est le <strong>Vendeur de XMR</strong>. Si vous lancez un échange, <strong>vous ACHÈTEREZ des XMR</strong> et paierez en monnaie fiduciaire (fiat) à l'extérieur.</div>
   {% else %}
-    <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:#c8e6c9;color:#256029;font-weight:600;">ACHAT XMR</span>
-    <span style="margin-left:8px;">Le propriétaire de l'offre est l'<strong>Acheteur de XMR</strong>. Si vous lancez un échange, <strong>vous VENDREZ des XMR</strong> et recevrez de la monnaie fiduciaire (fiat) à l'extérieur.</span>
+    <span class="badge-buy">ACHAT XMR</span>
+    <div class="alert-text">Le propriétaire de l'offre est l'<strong>Acheteur de XMR</strong>. Si vous lancez un échange, <strong>vous VENDREZ des XMR</strong> et recevrez de la monnaie fiduciaire (fiat) à l'extérieur.</div>
   {% endif %}
 </div>
 
@@ -32,8 +32,10 @@
 
 {% if self_trade_block %}
 <h2>Lancer l'échange</h2>
-<p style="color:#b00;">Vous ne pouvez pas lancer un échange avec vous-même.</p>
-<p><a href="{{ url_for('offers') }}">Retour aux offres</a></p>
+<div class="alert alert-danger">
+  <div>Vous ne pouvez pas lancer un échange avec vous-même.</div>
+</div>
+<p><a href="{{ url_for('offers') }}" class="btn btn-outline">Retour aux offres</a></p>
 {% else %}
 <h2>Lancer l'échange — {% if side == 'sell' %}Vous ACHÈTEREZ des XMR{% else %}Vous VENDREZ des XMR{% endif %}</h2>
 <form method="post" action="{{ url_for('trade_start', offer_id=offer.id) }}" style="display:grid;gap:8px;max-width:640px;grid-template-columns:repeat(2, minmax(200px,1fr));align-items:end;">

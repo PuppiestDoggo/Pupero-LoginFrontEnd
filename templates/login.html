@@ -85,17 +85,18 @@
                 </div>
             </form>
             {% elif current_stage == 'success' %}
-            <div class="login-success">
+            <div class="alert alert-success" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
                 <strong>Vous êtes connecté.</strong>
-                <p class="login-info">Vous pouvez maintenant continuer :</p>
+                <div class="alert-text">Vous pouvez maintenant continuer :</div>
+            </div>
 
-                <div class="login-actions">
-                    <a href="{{ url_for('profile') }}" class="btn btn-primary">Aller au Profil</a>
-                    <a href="{{ url_for('offers') }}" class="btn btn-outline">Parcourir les Offres</a>
-                </div>
-                <p class="login-note">
-                    Note : la barre de navigation reflétera votre session sur la prochaine page que vous ouvrirez.
-                </p>
+            <div class="login-actions" style="margin-top: 1.5rem;">
+                <a href="{{ url_for('profile') }}" class="btn btn-primary">Aller au Profil</a>
+                <a href="{{ url_for('offers') }}" class="btn btn-outline">Parcourir les Offres</a>
+            </div>
+
+            <div class="alert alert-info" style="margin-top: 1.5rem;">
+                <div class="alert-text">Note : la barre de navigation reflétera votre session sur la prochaine page que vous ouvrirez.</div>
             </div>
             {% endif %}
         </div>

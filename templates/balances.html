@@ -52,7 +52,9 @@
         </form>
       {% endif %}
     </div>
-    <p class="address-hint">Les anciennes adresses restent valides 24h après désactivation si elles sont vides.</p>
+    <div class="alert alert-info" style="margin-top: 1rem;">
+      <div class="alert-text">Les anciennes adresses restent valides 24h après désactivation si elles sont vides.</div>
+    </div>
   </div>
 </div>
 
@@ -107,9 +109,11 @@
         <small class="field-help">Minimum: 0.0001 XMR</small>
       </div>
       <button type="submit" class="btn btn-primary">Envoyer les fonds</button>
-    </form>
-    <p class="form-note">Limite : solde total disponible. Le système valide la limite côté serveur.</p>
-  </div>
+    <div class="alert alert-info" style="margin-top: 1.5rem;">
+      <div class="alert-text">Limite : solde total disponible. Le système valide la limite côté serveur.</div>
+    </div>
+  </form>
+</div>
 </div>
 
 {% if is_admin %}
