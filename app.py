@@ -1031,6 +1031,12 @@ def admin_page():
             elif action == 'logout' and uid:
                 r = requests.post(f"{BACKEND_URL}/admin/users/{uid}/logout", headers=headers, timeout=10)
                 flash('Sessions utilisateur fermées' if r.status_code == 200 else (r.text or 'L\'opération a échoué'), 'info' if r.status_code == 200 else 'error')
+            elif action == 'delete' and uid:
+                r = requests.delete(f"{BACKEND_URL}/admin/users/{uid}", headers=headers, timeout=10)
+                if r.status_code == 200:
+                    flash('Utilisateur supprimé avec succès', 'success')
+                else:
+                    flash(r.text or 'Échec de la suppression de l\'utilisateur', 'error')
         except Exception as e:
             flash(f'L\'action a échoué : {e}', 'error')
         return redirect(url_for('admin_page'))
@@ -3950,12 +3956,22 @@ def moderation_user_action(target_user_id):
         payload['duration_hours'] = int(duration)
     
     try:
-        r = requests.post(f'{MODERATION_SERVICE_URL}/users/{target_user_id}/{action}', 
-                          headers=headers, 
-                          json=payload, 
-                          timeout=10)
+        if action == 'delete':
+            # Route deletion through admin API in Backend since Moderation service might not handle it
+            headers_admin = get_auth_headers()
+            if not headers_admin:
+                flash('Session expirée ou invalide.', 'error')
+                return redirect(url_for('login'))
+            r = requests.delete(f"{BACKEND_URL}/admin/users/{target_user_id}", headers=headers_admin, timeout=10)
+        else:
+            r = requests.post(f'{MODERATION_SERVICE_URL}/users/{target_user_id}/{action}', 
+                              headers=headers, 
+                              json=payload, 
+                              timeout=10)
         if r.status_code == 200:
-            flash(f'Action "{action}" applied successfully.', 'success')
+            flash(f'Action "{action}" appliquée avec succès.', 'success')
+            if action == 'delete':
+                return redirect(url_for('moderation_users'))
         else:
             detail = r.json().get('detail', 'Unknown error') if r.text else 'Unknown error'
             flash(f'Failed to apply action: {detail}', 'error')

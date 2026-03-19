@@ -54,6 +54,11 @@
           <input type="hidden" name="action" value="logout">
           <button type="submit">Forcer la déconnexion</button>
         </form>
+        <form method="post" style="display:inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT ce compte ? Cette action est irréversible.');">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <input type="hidden" name="action" value="delete">
+          <button type="submit" style="background-color: var(--danger); color: white;">Supprimer</button>
+        </form>
         <details style="display:inline-block;margin-left:6px;">
           <summary>Réinitialiser le mot de passe</summary>
           <form method="post" style="display:flex;gap:6px;align-items:center;margin-top:4px;">
