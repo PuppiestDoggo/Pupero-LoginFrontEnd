@@ -29,7 +29,7 @@
 <div class="offers-grid-container">
   {% for o in offers %}
     {% set side = (o.__side or 'sell')|lower %}
-    <div class="offer-card-modern">
+    <div class="offer-card-modern animate-scale-in" style="animation-delay: {{ loop.index0 * 50 }}ms;">
       <div class="offer-card-header">
         <span class="badge {{ side }}">
           {% if side == 'sell' %}VENTE{% else %}ACHAT{% endif %}

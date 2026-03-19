@@ -5,7 +5,7 @@
 
 <div class="wallet-grid">
   <!-- Section Solde Principal -->
-  <div class="wallet-card balance-main">
+  <div class="wallet-card balance-main animate-scale-in">
     <h3>Solde Total Disponible</h3>
     {% if balance %}
       <div class="balance-amount">
@@ -35,7 +35,7 @@
   </div>
 
   <!-- Section Adresse de Réception -->
-  <div class="wallet-card address-card">
+  <div class="wallet-card address-card animate-scale-in" style="animation-delay: 100ms;">
     <h3>Votre Adresse de Réception</h3>
     <div class="address-container">
       {% if monero_address %}
@@ -60,7 +60,7 @@
 
 <div class="wallet-sections">
   <!-- Onglets/Sections -->
-  <div class="wallet-card transactions-card">
+  <div class="wallet-card transactions-card animate-slide-up" style="animation-delay: 200ms;">
     <div class="card-header-flex">
       <h3>Historique des adresses</h3>
     </div>
@@ -96,7 +96,7 @@
     {% endif %}
   </div>
 
-  <div class="wallet-card transfer-card">
+  <div class="wallet-card transfer-card animate-slide-up" style="animation-delay: 300ms;">
     <h3>Envoyer des Monero</h3>
     <form method="post" action="{{ url_for('balances_withdraw') }}" class="transfer-form">
       <div class="form-group">

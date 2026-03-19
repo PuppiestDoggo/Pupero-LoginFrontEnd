@@ -18,7 +18,7 @@
         </thead>
         <tbody>
           {% for t in trades %}
-            <tr>
+            <tr class="animate-fade-in" style="animation-delay: {{ loop.index0 * 30 }}ms;">
               <td><code>{{ t.id }}</code></td>
               <td>{{ t.offer_title or t.offer_id }}</td>
               <td><span class="badge {{ t.role }}">{{ t.role }}</span></td>

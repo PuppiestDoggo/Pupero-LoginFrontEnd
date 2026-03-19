@@ -19,10 +19,11 @@
   border: none;
   outline: none;
 
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.15s ease;
+  transition: var(--transition-base);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .btn-sm {
@@ -45,8 +46,8 @@
 .btn-primary:hover {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
 }
 
 /* =====================
@@ -57,14 +58,14 @@
   background: var(--secondary);
   color: var(--text-inv);
   border: 1px solid var(--secondary);
-  transition: all 0.2s ease;
+  transition: var(--transition-base);
 }
 
 .btn-secondary:hover {
   background: #475569;
   border-color: #475569;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
+  transform: translateY(-2px);
 }
 
 .btn-outline {
@@ -89,7 +90,8 @@
   background: var(--danger);
   color: var(--text-inv);
   border-color: var(--danger);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transform: translateY(-2px);
 }
 
 .btn-warning {
@@ -127,6 +129,14 @@
   align-items: center;
   gap: 1rem;
   line-height: 1.5;
+  transition: var(--transition-base);
+  animation: slideUp var(--transition-base);
+}
+
+.info-banner:hover {
+  transform: translateY(-2px);
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: var(--shadow-md);
 }
 
 .info-banner-text {
@@ -149,12 +159,14 @@
   background: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
+  animation: pulse-soft 2s infinite ease-in-out;
 }
 
 .badge-buy {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
+  animation: pulse-soft 2s infinite ease-in-out;
 }
 /* =====================================================
    ALERTS / NOTIFICATIONS (BASÉES SUR LES TOASTS)
@@ -173,7 +185,12 @@
   backdrop-filter: blur(12px);
   border-left: 4px solid transparent;
   margin-bottom: 1rem;
-  transition: all 0.4s ease;
+  transition: var(--transition-base);
+  animation: slideDown var(--transition-base);
+}
+
+.alert:hover, .flash-message:hover {
+  transform: scale(1.02);
 }
 
 .alert *, .flash-message * {
