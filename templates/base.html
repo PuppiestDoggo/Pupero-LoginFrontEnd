@@ -122,9 +122,11 @@
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(msg => {
                 setTimeout(() => {
-                    msg.style.opacity = '0';
-                    msg.style.transform = 'translateX(100%)';
-                    setTimeout(() => msg.remove(), 400);
+                    if (msg) {
+                      msg.style.opacity = '0';
+                      msg.style.transform = 'translateX(100%)';
+                      setTimeout(() => msg.remove(), 400);
+                    }
                 }, 5000);
             });
 
@@ -134,23 +136,27 @@
 
             // Vérifier le consentement et le paramètre de reset
             const hasConsent = localStorage.getItem('cookie-consent');
-            const forceReset = window.location.search.includes('reset_cookies=1');
+            const urlParams = new URLSearchParams(window.location.search);
+            const forceReset = urlParams.has('reset_cookies');
 
-            if (hasConsent && !forceReset) {
-                banner.style.display = 'none';
-            } else {
-                if (forceReset) {
-                    localStorage.removeItem('cookie-consent');
-                }
-                
-                // Forcer l'affichage
+            if (forceReset) {
+                localStorage.removeItem('cookie-consent');
+            }
+
+            if (!hasConsent || forceReset) {
+                // On s'assure que l'élément est bien dans le flux
                 banner.style.display = 'block';
                 
-                // Déclencher l'animation après un court délai pour s'assurer du rendu
-                setTimeout(() => {
-                    banner.style.opacity = '1';
-                    banner.style.transform = 'translateY(0)';
-                }, 100);
+                // On utilise requestAnimationFrame pour garantir que le navigateur 
+                // a pris en compte le display: block avant de lancer l'animation
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        banner.style.opacity = '1';
+                        banner.style.transform = 'translateY(0)';
+                    }, 50);
+                });
+            } else {
+                banner.style.display = 'none';
             }
 
             acceptBtn.addEventListener('click', function() {
